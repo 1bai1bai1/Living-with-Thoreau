@@ -156,9 +156,12 @@ BEATS: dict[str, Beat] = {
                 "Plowing, harrowing and furrowing that much with a hired horse costs $7.50, and seed beans about $3.12½ more.",
                 "Hoeing it would mean working from five in the morning until noon, all summer.",
             ],
-            goal="The player decides what to do with the field and plants it (or doesn't). Use adjust_money for plowing or seed and spend_time for the labor.",
+            goal=("The player decides what to do with the field and plants it (or doesn't). Use adjust_money for plowing "
+                  "or seed and spend_time for the labor. End with outcome 'big_field' (two and a half acres or so), "
+                  "'small_patch', or 'no_field'."),
             thoreau_stance="Seven and a half dollars for plowing is too much. He'd spade a smaller patch himself and keep his afternoons free.",
             people=["A farmer with a horse and plow for hire"],
+            outcomes={"big_field": [], "small_patch": [], "no_field": []},
         ),
         # --- The night in jail (July 1846): a three-beat branch -------------------------
         Beat(
@@ -229,11 +232,255 @@ BEATS: dict[str, Beat] = {
             ),
             people=["Sam Staples", "Friends bound for the huckleberry hill"],
         ),
+
+        # --- Autumn 1845: before the frost ---------------------------------------------
+        Beat(
+            id="harvest",
+            season_index=2,
+            title="The Bean Harvest",
+            when="September 1845",
+            location="bean_field",
+            situation=[
+                "September. The beans are ripe. Woodchucks have taken their share, and the rows (if there are rows) stand dry and rattling.",
+                "What there is to harvest depends on what the player planted this summer (see earlier_choices: beans).",
+                "Thoreau's own big field gave twelve bushels of beans and eighteen of potatoes. Nine bushels and twelve quarts of beans sold for $16.94.",
+                "A small hand-spaded patch gives enough to eat through the winter and perhaps $3 to $5 to sell (a game figure). No field means nothing to harvest.",
+                "Beans sell in Concord village.",
+            ],
+            goal=("The player brings in whatever crop there is, and sells some or keeps it. Use spend_time for the "
+                  "work and adjust_money (kind 'farm') for any sale, in the village. End when the harvest is in."),
+            thoreau_stance=(
+                "He's proud of knowing beans, and of how little he needed. The real profit, he says, is what the field "
+                "taught him. He'd sell only what they won't eat, and he loves to tally the accounts afterward."
+            ),
+            people=["Farmers and buyers in Concord", "The woodchucks"],
+        ),
+        Beat(
+            id="chimney",
+            season_index=2,
+            title="Fire and Plaster",
+            when="November 1845",
+            location="cabin",
+            situation=[
+                "November. The first frosts have come, and the house has no chimney. Nights are getting cold.",
+                "A chimney needs bricks (a thousand old ones sell for $4.00 at the yard, and they must be cleaned), lime and a mantle-tree iron. Stones for the hearth can come from the pond shore, and sand from the bank.",
+                "Plastering the walls needs laths, lime and hair, and it would keep the warmth in.",
+                "If the house is drafty (shanty boards), plaster matters even more.",
+            ],
+            goal=(
+                "The chimney gets built: call build('chimney') once the materials are in hand, and build('plaster') if the "
+                "player plasters too. Missing materials mean a trip to Concord: show the trip_planner, or the player can walk there."
+            ),
+            thoreau_stance=(
+                "A fire is the soul of a house. Building a chimney with your own hands, of second-hand brick and pond stones, "
+                "is the most satisfying work there is. He'd rather plaster too, before the snow."
+            ),
+            requires_built=["chimney"],
+        ),
+        # --- Winter 1845-46 ------------------------------------------------------------
+        Beat(
+            id="freeze",
+            season_index=3,
+            title="The Pond Freezes",
+            when="December 1845",
+            location="pond",
+            situation=[
+                "December 22, 1845: Walden froze over in a single night. Now the ice booms and whoops in the dark like something alive.",
+                "The woodpile is low. Fallen wood lies in the forest, waterlogged pitch-pine logs can be dragged across the ice, and old stumps can be dug for their resinous roots.",
+                "Farmers sell cordwood in the village, for those who'd rather pay than haul.",
+                "A drafty house (shanty boards, no plaster) burns through wood faster. Check house_quality and the house.",
+            ],
+            goal="The player lays in fuel for the winter, however they choose. Spend the hours honestly (more if the house is drafty). End when the woodpile will last.",
+            thoreau_stance="Wood you gather yourself warms you twice: once in the cutting and once in the burning. Buying cordwood is folly when the forest is full of it.",
+            people=["A farmer selling cordwood"],
+        ),
+        Beat(
+            id="ice_cutters",
+            season_index=3,
+            title="The Ice-Cutters",
+            when="January 1846",
+            location="pond",
+            situation=[
+                "January. A hundred Irish laborers and their Yankee overseers have come with horses, plows and saws to harvest the ice of Walden.",
+                "They cut it into blocks and stack it in a great pile on the shore. Some will be shipped as far as Charleston, New Orleans, Madras, Bombay and Calcutta.",
+                "People in town insist that Walden has no bottom. Nobody has ever actually measured it.",
+                "The overseer might pay for an extra pair of hands.",
+            ],
+            goal=(
+                "The player spends time among the ice-cutters, or apart from them: watching, working, talking, or "
+                "sounding the depth of the pond with a line and stone (it's 102 feet at its deepest). End when the cutters move on."
+            ),
+            thoreau_stance=(
+                "They harvest the pond and he only looks at it; which of them takes the greater crop? He's delighted that "
+                "Walden water will be drunk in India. He'd love to prove the bottomless pond has a bottom."
+            ),
+            people=["The ice-cutters", "Their overseer", "Townsfolk who swear the pond is bottomless"],
+        ),
+        Beat(
+            id="former_inhabitants",
+            season_index=3,
+            title="Former Inhabitants",
+            when="February 1846",
+            location="woods",
+            situation=[
+                "February, deep snow. Walking the old road through the woods, the player passes the cellar holes of houses long gone, with lilacs still growing by their doors.",
+                "These woods were home to people pushed to the edge of Concord: Cato Ingraham, enslaved by Duncan Ingraham; Zilpha, a free Black woman who spun linen, whose house was burned by English soldiers on parole in the War of 1812; Brister Freeman, once enslaved by Squire Cummings, and his wife Fenda, who told fortunes.",
+                "There were others: the Breed family, and Wyman the potter.",
+                "These were real people. Treat them with dignity, as lives, not scenery.",
+            ],
+            goal="The player walks among the ruins, learns who lived here, and reflects. End when they head home through the snow.",
+            thoreau_stance=(
+                "He's moved and a little ashamed: these were the woods' first free settlers, living on the margins the town "
+                "allowed them, and his own experiment stands on their ground. He wants to remember them."
+            ),
+        ),
+        # --- Spring 1846 ---------------------------------------------------------------
+        Beat(
+            id="thaw",
+            season_index=4,
+            title="The Thaw",
+            when="Late March 1846",
+            location="railroad",
+            situation=[
+                "The thaw. Along the deep cut where the railroad passes, the sand bank melts and flows down in branching shapes like leaves, veins and coral.",
+                "Walden's ice is going out: rotten, gray, then gone in a day, usually in late March or early April.",
+                "Geese go over, honking, and the first sparrow sings.",
+            ],
+            goal="The player witnesses the spring and decides what to make of the new year. End when the ice is out.",
+            thoreau_stance="He's ecstatic. The earth isn't dead; it's alive and growing, and he's sure the whole world is made on the pattern of a leaf.",
+        ),
+        Beat(
+            id="runaway",
+            season_index=4,
+            title="A Traveler Going North",
+            when="May 1846",
+            location="cabin",
+            situation=[
+                "A spring evening. A man escaping slavery arrives at the house, sent by friends in Concord. The Thoreau family, especially his mother and sisters, help people traveling the Underground Railroad.",
+                "He has come a very long way. He needs food, rest, and help getting safely to the next stop on the way to Canada, likely by the railroad.",
+                "Helping him is against federal law, and slave-catchers sometimes come north.",
+                "He is a whole person with his own name, history, fears and plans. Let him speak for himself; never make him a prop or a lesson.",
+                "Invent his name and story. Don't make him a known historical person (Thoreau never recorded who he helped).",
+            ],
+            goal=(
+                "The player decides how to help, or not. End with outcome 'helped' if they helped him on his way, or "
+                "'turned_away' if they didn't."
+            ),
+            thoreau_stance=(
+                "There's no question for him: you help. This is what conscience means, and it's the same reason he won't pay "
+                "the state its tax. He'd share everything he has, which isn't much."
+            ),
+            people=["The traveler", "Friends of the Thoreau family in Concord"],
+            outcomes={"helped": [], "turned_away": []},
+        ),
+        # --- Summer 1846 ---------------------------------------------------------------
+        Beat(
+            id="therien",
+            season_index=5,
+            title="The Woodchopper",
+            when="June 1846",
+            location="woods",
+            situation=[
+                "June. Alek Therien, a Canadian woodchopper and post-maker about twenty-eight years old, works in the woods nearby. He can hole fifty posts in a day.",
+                "He's cheerful from morning to night, eats woodchuck his dog catches, carries a pail of dinner, and laughs at almost anything.",
+                "He can barely read, but he loves to hear Homer read aloud, and he asks big questions in the simplest way.",
+            ],
+            goal="The player spends time with Therien: working alongside him, talking, reading to him, or simply watching how he lives. End when he heads home.",
+            thoreau_stance=(
+                "He's fascinated. Here's a man with no ambition at all, perfectly content, and he can't decide whether "
+                "Therien is wiser than all of Concord or has never woken up. He wants to find out."
+            ),
+            people=["Alek Therien", "His dog"],
+        ),
+        # --- Autumn 1846 ---------------------------------------------------------------
+        Beat(
+            id="baker_farm",
+            season_index=6,
+            title="Baker Farm",
+            when="Autumn 1846",
+            location="baker_farm",
+            situation=[
+                "Out fishing past Fair Haven, the player is caught in a sudden thunderstorm and runs for the nearest roof: John Field's hut at Baker Farm.",
+                "John Field is a poor Irish laborer. He, his wife and several children, and the chickens, crowd into the leaky hut.",
+                "He works bogging a meadow for a neighboring farmer at ten dollars an acre plus a year's use of the land, and he works very hard for very little.",
+                "When the rain stops, a rainbow stands over the field. The only water to drink comes from a muddy well.",
+            ],
+            goal="The player shelters with the Fields, talks with them, and leaves when the storm passes. End when they're back out under the rainbow.",
+            thoreau_stance=(
+                "He can't help it: he wants to tell Field that if he gave up tea, coffee, butter and meat he wouldn't have to "
+                "work so hard. He means it kindly, but he knows Field won't listen, and part of him knows he's being unfair."
+            ),
+            people=["John Field", "His wife", "Their children"],
+        ),
+        # --- Winter 1846-47 ------------------------------------------------------------
+        Beat(
+            id="second_winter",
+            season_index=7,
+            title="The Second Winter",
+            when="Winter 1846–47",
+            location="cabin",
+            situation=[
+                "The second winter. The player knows the woods and the cold now, and how much wood the house really needs.",
+                "A small cast-iron cooking stove can be had in the village (about $5, a game price). It burns far less wood than the open fireplace.",
+                "Visitors come through the snow: Ellery Channing, Bronson Alcott, and sometimes a farmer on the way past.",
+            ],
+            goal="The player gets through the second winter their own way. End when the days start to lengthen.",
+            thoreau_stance=(
+                "He's torn. The stove is real economy and he'll admit it, but he'd miss seeing a face in the fire. He's "
+                "happiest when old friends tramp through the snow to talk until late."
+            ),
+            people=["Ellery Channing", "Bronson Alcott", "A passing farmer"],
+        ),
+        # --- 1847 ------------------------------------------------------------------------
+        Beat(
+            id="second_field",
+            season_index=8,
+            title="A Smaller Field",
+            when="May 1847",
+            location="bean_field",
+            situation=[
+                "Spring 1847. Last year's field taught its lessons (see earlier_choices: beans).",
+                "Thoreau himself spaded only about a third of an acre the second year, having learned how little he needed.",
+            ],
+            goal="The player decides what to plant this year, and how much, and plants it. End when it's in the ground.",
+            thoreau_stance="Plant only what we'll eat. He's proud of needing less every year, and a little smug about it.",
+        ),
+        Beat(
+            id="leaving",
+            season_index=9,
+            title="Leaving the Woods",
+            when="September 6, 1847",
+            location="cabin",
+            situation=[
+                "September 1847. It's been two years, two months and two days since the Fourth of July, 1845.",
+                "Emerson is about to sail for England to lecture, and Lidian Emerson has asked whether the player will come and stay with her and the children while he's away.",
+                "A path is worn from the door to the pond. The house, the bean-field and the woodpile are all just as the player made them.",
+            ],
+            goal=(
+                "The player decides whether to leave the woods, says goodbye in their own way, and goes (or stays). Look "
+                "back over the story so far as you narrate. End with outcome 'left' or 'stayed'."
+            ),
+            thoreau_stance=(
+                "He's ready, and he isn't sad: he has several more lives to live, and he wouldn't want to wear a rut into "
+                "this one. He leaves the woods for as good a reason as he came."
+            ),
+            people=["Lidian Emerson, by letter or in person", "Friends who come to help carry things"],
+            outcomes={"left": [], "stayed": []},
+        ),
     ]
 }
 
 # The spine of the story, in order. (Branch beats are reached through outcomes.)
-ANCHORS: list[str] = ["axe", "shanty", "cellar", "village_run", "raising", "roofing", "move_in", "beans", "jail_errand"]
+ANCHORS: list[str] = [
+    "axe", "shanty", "cellar", "village_run", "raising", "roofing", "move_in", "beans",  # spring-summer 1845
+    "harvest", "chimney",  # autumn 1845
+    "freeze", "ice_cutters", "former_inhabitants",  # winter 1845-46
+    "thaw", "runaway",  # spring 1846
+    "therien", "jail_errand",  # summer 1846 (the jail branch follows a refusal)
+    "baker_farm",  # autumn 1846
+    "second_winter",  # winter 1846-47
+    "second_field", "leaving",  # 1847
+]
 
 
 def side_beat(beat_id: str, season_index: int, title: str, premise: str, location: str) -> Beat:

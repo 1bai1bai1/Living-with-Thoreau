@@ -10,6 +10,7 @@ import {
   type Approval,
   type Channel,
   type DebugEvent,
+  type FinalAccounts,
   type GameEvent,
   type LogEntry,
   type SceneView,
@@ -26,7 +27,37 @@ import { Blueprint, Ledger } from '../widgets';
 // then you type or tap; the game master answers, the world's rules apply,
 // Thoreau reacts if he cares to. When the scene's goal is met, you continue.
 type Phase = 'title' | 'loading' | 'busy' | 'open' | 'approval' | 'between' | 'ending';
-type Ending = { title: string; text: string; scenes_played: number };
+type Ending = { title: string; accounts: FinalAccounts };
+
+const FEELS: Record<string, string> = {
+  kindred: 'Kindred spirits',
+  hopeful: 'Hopeful',
+  uneasy: 'Uneasy',
+  estranged: 'At odds',
+};
+
+function Accounts({ a }: { a: FinalAccounts }) {
+  const rows: [string, string][] = [
+    ['Scenes lived', String(a.scenes_played)],
+    ['Your house cost', `${a.spent_on_house} (Thoreau's: ${a.thoreau_spent_on_house})`],
+    ['The house', `${a.house_percent}% built${a.house_quality ? `, ${a.house_quality}` : ''}`],
+    ['Hours of life spent', String(a.hours_of_life_spent)],
+    ['Money left', a.money_left],
+    ['Happiness', `${a.happiness} / 100`],
+    ['Wants', a.wants ? String(a.wants) : 'none'],
+    ['Thoreau, at the end', FEELS[a.thoreau_feels] ?? a.thoreau_feels],
+  ];
+  return (
+    <dl className="glass grid gap-x-6 gap-y-2 p-4 text-sm sm:grid-cols-2">
+      {rows.map(([k, v]) => (
+        <div key={k} className="flex items-baseline justify-between gap-3 border-b border-white/5 pb-1">
+          <dt className="label">{k}</dt>
+          <dd className="text-right tabular-nums">{v}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
 
 const SESSION_KEY = 'living-with-thoreau.session';
 const DEBUG_KEY = 'living-with-thoreau.debug';
@@ -185,9 +216,11 @@ export default function GamePage() {
         setNotice(e.message);
         break;
       case 'ending':
-        setEnding({ title: e.title, text: e.text, scenes_played: e.scenes_played });
+        setEnding({ title: e.title, accounts: e.accounts });
         setSnapshot(e.snapshot);
         setScene(null);
+        setEntries([]);
+        setChips([]);
         setPhase('ending');
         break;
       case 'debug':
@@ -195,7 +228,7 @@ export default function GamePage() {
         break;
       case 'ready':
         setSnapshot(e.snapshot);
-        setPhase(pendingRef.current ? 'approval' : doneRef.current ? 'between' : 'open');
+        setPhase((p) => (p === 'ending' ? p : pendingRef.current ? 'approval' : doneRef.current ? 'between' : 'open'));
         break;
     }
   };
@@ -317,10 +350,13 @@ export default function GamePage() {
                 {phase === 'loading' && !fatal && !scene && <p className="font-serif text-lg italic text-paper/60">The woods are quiet…</p>}
 
                 {phase === 'ending' && ending && (
-                  <section className="grid gap-4">
-                    <h1 className="font-serif text-4xl font-semibold">{ending.title}</h1>
-                    <p className="max-w-[62ch] font-serif text-xl leading-relaxed">{ending.text}</p>
-                    <p className="text-sm text-paper/60">{ending.scenes_played} scenes played.</p>
+                  <section className="grid gap-6">
+                    <header className="grid gap-1">
+                      <span className="label">September 1847 · the end</span>
+                      <h1 className="font-serif text-4xl font-semibold sm:text-5xl">{ending.title}</h1>
+                    </header>
+                    <Transcript entries={entries} act={act} canAct={false} />
+                    <Accounts a={ending.accounts} />
                     {snapshot && <Ledger props={snapshot.ledger} />}
                     <div>
                       <button type="button" className="btn-solid" onClick={restart}>
@@ -353,7 +389,9 @@ export default function GamePage() {
                 approval={approval}
                 notice={notice}
                 onSay={(text) => act({ kind: 'say', text })}
-                onApprove={(approved) => approval && act({ kind: 'approve', key: approval.key, approved })}
+                onApprove={(approved, allThisTurn) =>
+                  approval && act({ kind: 'approve', key: approval.key, approved, all_this_turn: allThisTurn })
+                }
                 onContinue={() => sid && nextScene(sid)}
               />
             )}

@@ -10,7 +10,7 @@ export default function Composer(props: {
   approval: Approval | null;
   notice: string | null;
   onSay: (text: string) => void;
-  onApprove: (approved: boolean) => void;
+  onApprove: (approved: boolean, allThisTurn?: boolean) => void;
   onContinue: () => void;
 }) {
   const [text, setText] = useState('');
@@ -54,6 +54,14 @@ export default function Composer(props: {
             <div className="flex gap-2">
               <button type="button" className="btn-solid" onClick={() => props.onApprove(true)}>
                 Pay
+              </button>
+              <button
+                type="button"
+                className="btn"
+                title="Also pay for anything else you buy this turn, without asking again"
+                onClick={() => props.onApprove(true, true)}
+              >
+                Pay for all of it
               </button>
               <button type="button" className="btn" onClick={() => props.onApprove(false)}>
                 Don't

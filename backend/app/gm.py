@@ -25,6 +25,7 @@ Events (plain dicts, sent as named SSE events by routers/game.py):
 
 import json
 import logging
+import re
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
@@ -69,6 +70,7 @@ class ApproveAction(BaseModel):
     kind: Literal["approve"]
     key: str
     approved: bool
+    all_this_turn: bool = False  # also pay for any further purchases this turn
 
 
 Action = Annotated[SayAction | TripAction | ApproveAction, Field(discriminator="kind")]
@@ -87,6 +89,7 @@ class Turn:
     calls: int = 0
     superfluity: str | None = None  # "first" or "again" if this turn added a want
     wants_at_start: int | None = None
+    approve_all: bool = False  # the player said yes to everything this turn
     paid: list[int] = field(default_factory=list)  # material prices paid this turn, in mills
     work_hours: list[int] = field(default_factory=list)  # hours those materials took
 
@@ -131,15 +134,25 @@ def _scene_payload(state: GameState, beat: Beat) -> dict:
             "location": state.location_name, "number": state.scenes_played, "side": beat.side}
 
 
-def _ending(state: GameState) -> dict:
-    return {
-        "type": "ending",
-        "title": "To be continued",
-        "text": ("That's as far as the story is written for now. The house is closed in, the beans are in, and the "
-                 "night in jail is behind you. The chimney, the winters and leaving the woods come next."),
-        "scenes_played": state.scenes_played,
-        "snapshot": snapshot(state),
-    }
+async def _ending(state: GameState, llm: LLM) -> AsyncIterator[dict]:
+    """The end of the story: the final accounts, the narrator's epilogue, and
+    Thoreau's last word. Both are written once and kept, so a reload shows
+    the same ending."""
+    accounts = prompts.final_accounts(state)
+    title = "Staying On" if accounts["ending"] == "stayed" else "Leaving the Woods"
+    yield {"type": "ending", "title": title, "accounts": accounts, "snapshot": snapshot(state)}
+    for channel, attr, prompt in (("narrator", "epilogue", prompts.epilogue), ("thoreau", "farewell", prompts.farewell)):
+        yield {"type": "channel_start", "channel": channel, "tone": None}
+        if getattr(state, attr) is None:
+            text = ""
+            async for chunk in safe_stream(llm, prompt(state)):
+                text += chunk
+                yield {"type": "token", "channel": channel, "text": chunk}
+            setattr(state, attr, text.strip())
+        else:
+            yield {"type": "token", "channel": channel, "text": getattr(state, attr)}
+        yield {"type": "channel_end", "channel": channel}
+    yield _debug("beat", event="ending", accounts=accounts)
 
 
 # --- Opening a scene ---------------------------------------------------------------------
@@ -148,7 +161,8 @@ def _ending(state: GameState) -> dict:
 async def stream_next(session: Session, llm: LLM) -> AsyncIterator[dict]:
     state = session.state
     if state.finished:
-        yield _ending(state)
+        async for event in _ending(state, llm):
+            yield event
         return
     if state.phase in ("open", "approval") and state.beat_id:  # a reload mid-scene
         beat = _beat(session)
@@ -164,7 +178,8 @@ async def stream_next(session: Session, llm: LLM) -> AsyncIterator[dict]:
     beat = director.advance(state)
     if beat is None:
         state.finished = True
-        yield _ending(state)
+        async for event in _ending(state, llm):
+            yield event
         return
     known = LOCATIONS.get(beat.location)
     state.location = beat.location if known else rules.slug(beat.location)
@@ -202,7 +217,9 @@ async def stream_act(session: Session, llm: LLM, action) -> AsyncIterator[dict]:
             return
         session.pending = None
         state.phase = "open"
-        yield _debug("turn", input=f"(approval: {'pay' if action.approved else 'decline'})", key=action.key)
+        pending.turn.approve_all = action.approved and action.all_this_turn
+        label = "pay for all of it" if pending.turn.approve_all else "pay" if action.approved else "decline"
+        yield _debug("turn", input=f"(approval: {label})", key=action.key)
         async for event in _turn(session, llm, beat, pending.turn, resume=(pending, action.approved)):
             yield event
         return
@@ -278,7 +295,10 @@ async def _turn(session: Session, llm: LLM, beat: Beat, turn: Turn, resume: tupl
                              why="repeats what acquire already counted this turn")
                 continue
             ask = approval_needed(state, beat, call.name, args)
-            if ask is not None and not (i == start and decision is not None):
+            if ask is not None and turn.approve_all and not (i == start and decision is not None):
+                decision = True  # already approved for the rest of this turn
+                yield _debug("tool", name=call.name, args=args, status="approved for this turn", ask=ask)
+            if ask is not None and not (i == start and decision is not None) and not turn.approve_all:
                 session.pending = Pending(key=approval_key(call.name, args), calls=calls, index=i, results=results,
                                           turn=turn)
                 state.phase = "approval"
@@ -346,6 +366,9 @@ async def _turn(session: Session, llm: LLM, beat: Beat, turn: Turn, resume: tupl
             async for item in llm.gm_round(system, session.contents, DECLARATIONS):
                 if isinstance(item, Round):
                     round_ = item
+                    continue
+                item = _TAG.sub("", item).replace("*", "")  # stray markup like </i> or *emphasis*
+                if not narrating and not item.strip():
                     continue
                 if not narrating:
                     yield {"type": "channel_start", "channel": "narrator", "tone": None}
@@ -418,6 +441,9 @@ async def _turn(session: Session, llm: LLM, beat: Beat, turn: Turn, resume: tupl
                      queued=state.queued, turns=state.beat_turns)
         yield {"type": "beat_complete", "summary": state.beat_summary, "snapshot": snapshot(state)}
     yield {"type": "ready", "snapshot": snapshot(state)}
+
+
+_TAG = re.compile(r"</?[a-zA-Z][^>]{0,40}>")
 
 
 def _repeats_acquire(turn: Turn, name: str, args: dict) -> str | None:

@@ -73,7 +73,7 @@ def test_walking(state):
 
 def test_money_changes_are_bounded(state):
     rules.adjust_money(state, 50, "A mysterious inheritance", {})
-    assert state.money == mills(30)  # at most $10 per call
+    assert state.money == mills(45)  # at most $25 per call
     with pytest.raises(rules.RuleError):
         rules.adjust_money(state, 0, "Nothing", {})
 
@@ -136,7 +136,7 @@ def test_beat_outcomes_branch_the_story(state):
 
     director.fast_forward(state, "jail_errand")
     beat = director.advance(state)
-    assert beat.id == "jail_errand" and state.season_index == 5 and state.built == ["frame", "shell"]
+    assert beat.id == "jail_errand" and state.season_index == 5 and {"frame", "shell", "chimney"} <= set(state.built)
     bad = run_tool(state, beat, "end_beat", {"summary": "Something happened."})
     assert "outcome must be one of paid, refused" in bad.result["error"]
     run_tool(state, beat, "end_beat", {"summary": "Refused the tax.", "outcome": "refused"})
@@ -152,3 +152,24 @@ def test_widget_requests_are_validated():
         WIDGET_ADAPTER.validate_python({"component": "free_dragon"})
     with pytest.raises(ValidationError):
         WIDGET_ADAPTER.validate_python({"component": "material_card", "materials": ["gold_bars"]})
+
+
+def test_the_backbone_runs_in_season_order_and_reaches_twenty_scenes():
+    from app.beats import ANCHORS, BEATS
+    from app.director import MIN_SCENES
+
+    seasons = [BEATS[a].season_index for a in ANCHORS]
+    assert seasons == sorted(seasons) and seasons[-1] == 9
+    assert len(ANCHORS) + 2 >= MIN_SCENES  # with the jail branch
+    assert ANCHORS[-1] == "leaving" and set(BEATS["leaving"].outcomes) == {"left", "stayed"}
+
+
+def test_outcomes_are_remembered_for_later_scenes(state):
+    from app import director
+    from app.tools import run_tool
+
+    director.fast_forward(state, "beans")
+    beat = director.advance(state)
+    run_tool(state, beat, "end_beat", {"summary": "Spaded a small patch.", "outcome": "small_patch"})
+    assert state.outcomes["beans"] == "small_patch"
+    assert rules.status(state)["earlier_choices"] == {"beans": "small_patch"}

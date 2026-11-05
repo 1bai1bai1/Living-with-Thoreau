@@ -207,3 +207,43 @@ async def test_the_first_want_gets_a_warning(session):
     assert "first want" in llm.thoreau_prompts[-1].user
     # He must speak even if the model tries to stay silent: the authored warning stands in.
     assert "That's how it starts" in text_of(events, "thoreau")
+
+
+
+async def test_the_ending_is_written_once(session):
+    from app import director
+
+    director.fast_forward(session.state, "leaving")
+    llm = ScriptedLLM(gm=[[("text", "The path to the pond is worn smooth.")],
+                          [("call", "end_beat", {"summary": "Left the woods.", "outcome": "left"})],
+                          [("text", "You shoulder your pack.")]],
+                      thoreau=["(opening)", "(react)", "Two years, two months and two days.", "Go on, friend."])
+    await open_scene(session, llm)
+    await say(session, llm, "I close the door and walk to Concord")
+    events = await open_scene(session, llm)
+    ending = events[0]
+    assert ending["type"] == "ending" and ending["title"] == "Leaving the Woods"
+    assert ending["accounts"]["ending"] == "left" and ending["accounts"]["thoreau_spent_on_house"] == "$28.12½"
+    assert text_of(events, "narrator") == "Two years, two months and two days."  # the epilogue
+    assert text_of(events, "thoreau") == "Go on, friend."  # his last word
+    calls = len(llm.thoreau_prompts)
+    again = await open_scene(session, llm)  # a reload shows the same ending without asking the model again
+    assert text_of(again, "thoreau") == "Go on, friend." and len(llm.thoreau_prompts) == calls
+
+
+async def test_pay_for_all_of_it_covers_the_rest_of_the_turn(session):
+    from app import director
+
+    director.fast_forward(session.state, "chimney")
+    llm = ScriptedLLM(gm=[[("text", "Cold.")],
+                          [("call", "acquire", {"material": "bricks", "method": "old"})],
+                          [("call", "acquire", {"material": "lime", "method": "casks"})],
+                          [("call", "acquire", {"material": "mantle_iron", "method": "store"})],
+                          [("text", "You load the cart.")]])
+    await open_scene(session, llm)
+    session.state.location, session.state.location_name = "village", "Concord village"  # walked in already
+    ask = next(e for e in await say(session, llm, "buy the bricks, the lime and the iron") if e["type"] == "approval_required")
+    events = await collect(stream_act(session, llm, ApproveAction(kind="approve", key=ask["key"], approved=True,
+                                                                  all_this_turn=True)))
+    assert not any(e["type"] == "approval_required" for e in events)
+    assert {"bricks", "lime", "mantle_iron"} <= set(session.state.owned)

@@ -8,7 +8,7 @@ will run between MIN_SCENES and MAX_SCENES.
 
 from . import rules
 from .beats import ANCHORS, Beat, get_beat, side_beat
-from .state import GameState
+from .state import GameState, LedgerEntry
 
 MIN_SCENES = 20
 MAX_SCENES = 80
@@ -55,28 +55,50 @@ def propose_side_scene(state: GameState, title: str, premise: str, location: str
     return beat_id
 
 
+def _paid(state: GameState, cost: int, label: str, kind: str = "house") -> None:
+    state.money -= cost
+    state.ledger.append(LedgerEntry(season=state.season.label, label=f"{label} (skipped for testing)", cost=cost,
+                                    hours=0, kind=kind))
+
+
+def _after(state: GameState, beat_id: str) -> None:
+    """What Thoreau's own path leaves behind after each anchor (for test starts)."""
+    if beat_id == "axe":
+        state.items["timber"] = "Hewn pine timbers"
+    elif beat_id == "shanty":
+        state.owned.update({"boards": "shanty", "nails": "salvage"})
+        _paid(state, 4250, "Collins's shanty")
+    elif beat_id == "village_run":
+        state.owned.update({"shingles": "refuse", "windows": "secondhand", "hardware": "store"})
+        _paid(state, 6680, "Shingles, windows, hardware")
+        state.village_trips = 1
+    elif beat_id == "raising":
+        state.built.append("frame")
+    elif beat_id == "roofing":
+        state.built.append("shell")
+    elif beat_id == "beans":
+        _paid(state, 1000, "Seed for a small patch", "farm")
+        state.outcomes["beans"] = "small_patch"
+    elif beat_id == "harvest":
+        _paid(state, -4000, "Beans sold", "farm")
+    elif beat_id == "chimney":
+        state.owned.update({"bricks": "old", "lime": "casks", "mantle_iron": "store", "laths": "store", "hair": "store"})
+        _paid(state, 8110, "Bricks, lime, iron, laths, hair")
+        state.built += ["chimney", "plaster"]
+    elif beat_id == "runaway":
+        state.outcomes["runaway"] = "helped"
+    elif beat_id == "jail_errand":
+        state.outcomes["jail_errand"] = "refused"
+
+
 def fast_forward(state: GameState, beat_id: str) -> None:
     """For testing: start a new game just before an anchor beat, as if the
     earlier scenes went the way Thoreau would have played them."""
     if beat_id not in ANCHORS:
         raise rules.RuleError(f"'{beat_id}' isn't a scene you can start from. Try: {', '.join(ANCHORS)}.")
     index = ANCHORS.index(beat_id)
-    if index == 0:
-        return
     for anchor in ANCHORS[:index]:
         state.history.append(f"{get_beat(anchor, {}).title}: (skipped for testing)")
+        _after(state, anchor)
     state.anchor_index = index
-    if index > ANCHORS.index("axe"):
-        state.items["timber"] = "Hewn pine timbers"
-    if index > ANCHORS.index("shanty"):
-        state.owned.update({"boards": "shanty", "nails": "salvage"})
-        state.money -= 4250
-    if index > ANCHORS.index("village_run"):
-        state.owned.update({"shingles": "refuse", "windows": "secondhand", "hardware": "store"})
-        state.money -= 6680
-        state.village_trips = 1
-    if index > ANCHORS.index("raising"):
-        state.built.append("frame")
-    if index > ANCHORS.index("roofing"):
-        state.built.append("shell")
     state.scenes_played = index

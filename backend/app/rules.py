@@ -66,7 +66,7 @@ MAX_HAPPINESS_PER_ACTION = 10
 WANT_DRAIN_PER_SEASON = 3
 
 MAX_HOURS_PER_ACTION = 40
-MAX_MONEY_PER_ADJUST = mills(10.00)
+MAX_MONEY_PER_ADJUST = mills(25.00)
 
 
 class RuleError(Exception):
@@ -174,6 +174,8 @@ def status(state: GameState) -> dict:
         "materials": {MATERIALS[m].name: MATERIALS[m].method(meth).label for m, meth in state.owned.items()},
         "items": dict(state.items),
         "house": {s.label: stage_status(state, s) for s in STAGES},
+        "house_quality": house_quality(state),
+        "earlier_choices": dict(state.outcomes),
     }
 
 

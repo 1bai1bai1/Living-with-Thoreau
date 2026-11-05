@@ -76,7 +76,7 @@ DECLARATIONS = [
     ),
     types.FunctionDeclaration(
         name="adjust_money",
-        description="Money that changes hands for anything other than house materials: a fee, a gift, a sale, seed, a hired plow. Negative to spend (the player is asked first). At most $10 either way.",
+        description="Money that changes hands for anything other than house materials: a fee, a gift, a sale, seed, a hired plow. Negative to spend (the player is asked first). At most $25 either way.",
         parameters=_obj({"dollars": S(type="NUMBER"), "reason": S(type="STRING"),
                          "kind": S(type="STRING", enum=["house", "farm", "labor", "tools", "other"]), **_VALUES},
                         ["dollars", "reason"]),
@@ -235,6 +235,8 @@ def _run(state: GameState, beat: Beat, name: str, args: dict) -> ToolOutcome:
             state.queued = list(beat.outcomes[outcome]) + state.queued
         state.beat_done = True
         state.beat_summary = str(args.get("summary", ""))[:300]
-        state.beat_outcome = outcome
+        state.beat_outcome = outcome if beat.outcomes else None
+        if beat.outcomes:
+            state.outcomes[beat.id] = outcome
         return ToolOutcome(result={"ok": True, "note": "The scene is over. Finish your narration in a sentence or two."})
     raise rules.RuleError(f"There's no tool called {name}.")

@@ -1,6 +1,6 @@
 # Living with Thoreau — Design
 
-Status: playable from Spring 1845 to Summer 1846: 9 anchor beats plus the 2-beat jail branch, and any side scenes the game master invents. Conversational, with Gemini as the game master. See [research.md](research.md) for the sources.
+Status: the whole story is playable, from Spring 1845 to leaving on September 6, 1847: 21 anchor beats, the 2-beat jail branch, and any side scenes the game master invents, ending with a written epilogue and Thoreau's last word. Conversational, with Gemini as the game master. See [research.md](research.md) for the sources.
 
 ## Decisions so far
 
@@ -35,7 +35,7 @@ The conversation with the game master is kept on the server for the length of a 
 
 `look_around`, `move`, `acquire` (house materials, real prices), `build`, `spend_time`, `adjust_money` (anything else, ±$10 a call), `day_labor`, `gain_item` / `lose_item`, `show_widget`, `pass_to_thoreau`, `propose_side_scene`, `end_beat`.
 
-Guards learned from live play: within a turn, an `adjust_money` that repeats a purchase's price (in either direction) is refused. So is a `spend_time` that repeats the hours `acquire` already counted. The prompt asks the model not to do either, but it sometimes does anyway.
+Guards learned from live play: within a turn, an `adjust_money` that repeats a purchase's price (in either direction) is refused. So is a `spend_time` that repeats the hours `acquire` already counted. The prompt asks the model not to do either, but it sometimes does anyway. Stray markup in narration (`</i>`, `*emphasis*`) is stripped. An outcome passed for a scene that declares none is ignored.
 
 ### Debug panel
 
@@ -84,17 +84,47 @@ The first branch, played live end to end:
 
 The seasons between the bean-field and the errand (Autumn 1845 to Spring 1846) aren't written yet, so for now the story jumps straight there.
 
+## The story's backbone (21 anchors)
+
+| Season | Scenes |
+|---|---|
+| Spring 1845 | An Axe and Some Pines · Collins's Shanty · A Hole in the Hillside · Into Concord · Raising the Frame · Walls and a Roof |
+| Summer 1845 | The Fourth of July · The Bean-Field (outcomes: big_field / small_patch / no_field) |
+| Autumn 1845 | The Bean Harvest (sells what was planted) · Fire and Plaster (requires the chimney) |
+| Winter 1845–46 | The Pond Freezes (fuel; a drafty house needs more) · The Ice-Cutters (and sounding the "bottomless" pond) · Former Inhabitants |
+| Spring 1846 | The Thaw · A Traveler Going North (outcomes: helped / turned_away) |
+| Summer 1846 | The Woodchopper (Alek Therien) · The Shoemaker's Errand → jail branch |
+| Autumn 1846 | Baker Farm (John Field) |
+| Winter 1846–47 | The Second Winter (the stove, old friends) |
+| 1847 | A Smaller Field · Leaving the Woods (outcomes: left / stayed) |
+
+Outcomes are remembered in `state.outcomes`, and later scenes see them as `earlier_choices` (the harvest knows what was planted). Two scenes involve real people who were enslaved or escaping slavery: Former Inhabitants (Cato Ingraham, Zilpha, Brister and Fenda Freeman) and A Traveler Going North. Both instruct the model to portray them with dignity, as people with their own voices. The traveler's name is invented, because Thoreau never recorded who he helped. The game master also gets a list of **side-scene ideas** from Thoreau's real life: the ant war, the loon, the woodchuck, the tame mouse, night fishing, Channing and Alcott, Sunday dinner at the Emersons', the melon party, the spark in the bed, Mount Katahdin, and the "woods-burner" gossip.
+
+## The ending
+
+When the last anchor is done, the server sends `ending` with the **final accounts**:
+- scenes lived;
+- what you spent on the house against Thoreau's $28.12½;
+- how much of the house got built, and how drafty it is;
+- hours of life spent, and money left;
+- happiness and wants;
+- how Thoreau feels about you;
+- the choices you made.
+
+Then two streamed texts follow: the narrator's **epilogue**, written from the whole history, and **Thoreau's last word**, shaped by your happiness, wants and his mood. Both are written once and kept, so a reload shows the same ending.
+
+## Approvals
+
+Each purchase asks Pay / Don't. **Pay for all of it** also approves any further purchases in the same turn, so a shopping trip you've already described doesn't need five clicks. Each one is still logged in the debug panel.
+
 ## Testing aids
 
-The debug panel has **New game at** [scene] → **Start**. It begins a fresh game just before any anchor, as if the earlier scenes went Thoreau's way (`director.fast_forward`; `POST /api/game/new {"start": id}`; `GET /api/game/beats`).
+The debug panel has **New game at** [scene] → **Start**. It begins a fresh game just before any anchor, as if the earlier scenes went Thoreau's way. That includes ledger entries, so a test ending's accounts are sensible (`director.fast_forward`; `POST /api/game/new {"start": id}`; `GET /api/game/beats`).
 
 ## Next up
 
-- Content for the gaps, about 10 more anchors:
-  - Autumn 1845: the chimney and plaster before the frost.
-  - Winter 1845–46: the pond freezes, the woodpile, the ice-cutters, winter visitors.
-  - Spring 1846: the first harvest and the ledger, Alek Therien.
-  - Autumn 1846 → Summer 1847: John Field at Baker Farm, a smaller second field, a second winter, and leaving on Sept 6, 1847.
-- Give the director its own nudges for side scenes (low fuel, an unmet visitor, a big drift), alongside the game master's proposals.
-- An ending that reflects how you lived: your ledger against Thoreau's, your happiness and wants, and his last word on you.
-- Persist sessions beyond memory, and add the journal page.
+- Play the whole story through and tune the pacing: how many turns each scene takes, and whether 21 to 23 scenes feels right.
+- Check that the "paid" or "refused" outcome matches what happened (for example, "paid" requires the $6.00 to have left your money).
+- Give the director its own nudges for side scenes (low happiness, an unmet friend, a big drift), alongside the game master's proposals.
+- Persist sessions beyond memory, so a backend restart doesn't end a game in progress. This matters more now that a game is 20+ scenes.
+- The journal page (nice-to-have), and visual direction B as an alternate skin.

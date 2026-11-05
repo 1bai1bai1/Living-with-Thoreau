@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from . import rules
 from .beats import Beat
 from .state import GameState
+from .world import fmt_money
 
 
 @dataclass
@@ -30,7 +31,20 @@ CAST = """People of Concord you may use (invent anyone else you like):
 - James Collins: an Irish railroad worker selling his shanty; his wife keeps a cat and a few treasures.
 - Alek Therien: a cheerful Canadian woodchopper who reads Homer badly and laughs a lot.
 - John Field: a poor Irish laborer at Baker Farm with a big family.
-- Sam Staples: Concord's constable and tax collector; friendly, but he does his job."""
+- Sam Staples: Concord's constable and tax collector; friendly, but he does his job.
+
+Side-scene ideas from Thoreau's real life at Walden (for propose_side_scene, when one fits the moment):
+- The war of the ants: red against black on the woodpile, a battle in miniature.
+- Chasing a loon across the pond in a boat, its wild laughter mocking every guess.
+- A woodchuck crossing the path, and a sudden savage urge to catch it and eat it raw.
+- A wild mouse that grows tame enough to eat cheese from the player's hand.
+- Night fishing for horned pout by moonlight, with a flute.
+- Ellery Channing turning up to fish and talk nonsense; Bronson Alcott staying until midnight with big ideas.
+- Sunday dinner at the Emersons', or a trip home where his mother still does the laundry (Thoreau gets defensive).
+- The annual melon party for friends at the house.
+- A spark from the fire catches the bed.
+- A trip to Maine to climb Mount Katahdin (late summer 1846).
+- Village gossip still calling him "woods-burner" for the fire he accidentally started in 1844."""
 
 
 GAME_MASTER = """You are the game master and narrator of "Living with Thoreau". The player is living in Henry David Thoreau's body at Walden Pond, outside Concord, Massachusetts, 1845 to 1847. Thoreau himself is still in there, as a separate voice in the player's head. Someone else plays him, right after each of your replies. Never voice, quote or paraphrase his thoughts, and never describe what he'd say.
@@ -219,4 +233,65 @@ What's happened in this scene so far (latest last):
 {recent}
 
 {task}"""
+    return Prompt(system=THOREAU_CHARACTER, user=user, fallback=fallback)
+
+
+# --- The ending ---------------------------------------------------------------------------
+
+
+def final_accounts(state: GameState) -> dict:
+    from .widgets import ledger  # late import: widgets doesn't depend on prompts
+
+    books = ledger(state)
+    return {
+        "scenes_played": state.scenes_played,
+        "ending": state.outcomes.get("leaving", "left"),
+        "money_left": fmt_money(state.money),
+        "house_percent": rules.house_percent(state),
+        "house_quality": rules.house_quality(state),
+        "spent_on_house": fmt_money(books["house_spent"]),
+        "thoreau_spent_on_house": fmt_money(books["thoreau"]["house_total"]),
+        "hours_of_life_spent": state.hours_spent,
+        "happiness": state.happiness,
+        "wants": state.wants,
+        "thoreau_feels": rules.mood(state.drift),
+        "choices": dict(state.outcomes),
+    }
+
+
+def _whole_story(state: GameState) -> str:
+    return "\n".join(f"- {line}" for line in state.history) or "- (nothing happened)"
+
+
+EPILOGUE = """You write the epilogue of "Living with Thoreau", a game in which the player lived in Henry David Thoreau's body at Walden Pond, 1845 to 1847.
+Second person, past tense, plain prose (no lists, no markdown), under 180 words, in two short paragraphs. Draw on the specific things that happened; never invent big events that didn't. Don't speak as Thoreau."""
+
+
+def epilogue(state: GameState) -> Prompt:
+    accounts = final_accounts(state)
+    stayed = accounts["ending"] == "stayed"
+    user = f"""The player's two years, scene by scene:
+{_whole_story(state)}
+
+Final accounts: {json.dumps(accounts)}
+
+Write the epilogue. First paragraph: what these two years were, through their particular moments. Second paragraph: the last morning, {"staying on at the pond after all" if stayed else "walking away from the house for the last time"}."""
+    fallback = ("Two years, two months and two days. You built a house for less than most men pay for a coat, and you "
+                "learned how little a life needs. On the last morning the path to the pond was worn smooth by your own "
+                "feet, and you closed the door behind you without locking it.")
+    return Prompt(system=EPILOGUE, user=user, fallback=fallback, temperature=0.9)
+
+
+def farewell(state: GameState) -> Prompt:
+    user = f"""This is the very end. For two years the player has lived in your body at Walden. Now they're leaving it for good.
+
+What they did, scene by scene:
+{_whole_story(state)}
+
+Final accounts: {json.dumps(final_accounts(state))}
+{MOOD_NOTE[rules.mood(state.drift)]}
+
+Give them your last word, in 3 to 5 sentences: honest, personal, passionate. Name a moment you loved. Argue with one thing one last time, or forgive it. Say what you'll carry with you. Let their happiness, their wants, and how close you came to feel show in what you say."""
+    fallback = ("Well, friend, we did it, more or less. You didn't always listen to me, and I didn't always deserve it. "
+                "Go on, then. Live as deliberately out there as you tried to in here.")
     return Prompt(system=THOREAU_CHARACTER, user=user, fallback=fallback)

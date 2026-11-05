@@ -53,6 +53,9 @@ class GameState(BaseModel):
     beat_done: bool = False
     beat_summary: str | None = None
     beat_outcome: str | None = None
+    outcomes: dict[str, str] = Field(default_factory=dict)  # beat id -> how it ended, for later scenes
+    epilogue: str | None = None  # the ending, once written
+    farewell: str | None = None  # Thoreau's last word, once said
     phase: Literal["between", "open", "approval"] = "between"
     finished: bool = False
 

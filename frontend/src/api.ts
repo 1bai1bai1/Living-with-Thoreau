@@ -62,6 +62,21 @@ export type LogEntry =
 
 export type Approval = { key: string; title: string; detail: string };
 
+export type FinalAccounts = {
+  scenes_played: number;
+  ending: 'left' | 'stayed';
+  money_left: string;
+  house_percent: number;
+  house_quality: string | null;
+  spent_on_house: string;
+  thoreau_spent_on_house: string;
+  hours_of_life_spent: number;
+  happiness: number;
+  wants: number;
+  thoreau_feels: string;
+  choices: Record<string, string>;
+};
+
 export type GameEvent =
   | { type: 'scene'; scene: SceneView; log: LogEntry[]; snapshot: Snapshot }
   | { type: 'channel_start'; channel: Channel; tone: number | null }
@@ -72,7 +87,7 @@ export type GameEvent =
   | ({ type: 'approval_required' } & Approval)
   | { type: 'beat_complete'; summary: string | null; snapshot: Snapshot }
   | { type: 'error'; message: string }
-  | { type: 'ending'; title: string; text: string; scenes_played: number; snapshot: Snapshot }
+  | { type: 'ending'; title: string; accounts: FinalAccounts; snapshot: Snapshot }
   | { type: 'ready'; snapshot: Snapshot }
   | DebugEvent
   | { type: 'done' };
@@ -89,7 +104,7 @@ export type TripBuy = { material: string; method: string };
 export type Action =
   | { kind: 'say'; text: string }
   | { kind: 'trip'; stops: string[]; buys: TripBuy[] }
-  | { kind: 'approve'; key: string; approved: boolean };
+  | { kind: 'approve'; key: string; approved: boolean; all_this_turn?: boolean };
 
 export class ApiError extends Error {
   constructor(
