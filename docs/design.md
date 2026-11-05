@@ -117,6 +117,10 @@ Then two streamed texts follow: the narrator's **epilogue**, written from the wh
 
 Each purchase asks Pay / Don't. **Pay for all of it** also approves any further purchases in the same turn, so a shopping trip you've already described doesn't need five clicks. Each one is still logged in the debug panel.
 
+## When Gemini's sign-in expires
+
+Google's Application Default Credentials expire from time to time ("Reauthentication is needed"). The turn then fails without changing anything. In place of the generic "lost the thread" message, the game tells you to run `gcloud auth application-default login` and try again. The Gemini client is dropped at the same moment, so the next call reads the new sign-in. There's no backend restart, and the game in progress survives.
+
 ## Testing aids
 
 The debug panel has **New game at** [scene] → **Start**. It begins a fresh game just before any anchor, as if the earlier scenes went Thoreau's way. That includes ledger entries, so a test ending's accounts are sensible (`director.fast_forward`; `POST /api/game/new {"start": id}`; `GET /api/game/beats`).

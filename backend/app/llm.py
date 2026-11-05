@@ -34,6 +34,13 @@ class Round:
     calls: list[types.FunctionCall]
 
 
+class ModelAuthError(RuntimeError):
+    """The Google sign-in behind Gemini has expired or is missing."""
+
+    MESSAGE = ('Gemini\'s Google Cloud sign-in has expired. Run "gcloud auth application-default login" '
+               "in a terminal, then try again. Your game is still here.")
+
+
 class LLM(Protocol):
     def stream(self, prompt: Prompt) -> AsyncIterator[str]: ...
 
@@ -85,6 +92,7 @@ class GeminiLLM:
         return self._client
 
     async def _open(self, contents, config):
+        from google.auth.exceptions import DefaultCredentialsError, RefreshError
         from google.genai.errors import ClientError
 
         for attempt in range(3):
@@ -92,6 +100,12 @@ class GeminiLLM:
                 return await self._get_client().aio.models.generate_content_stream(
                     model=self.settings.GEMINI_MODEL, contents=contents, config=config
                 )
+            except (RefreshError, DefaultCredentialsError) as exc:
+                # The client holds the credentials it loaded at startup. Drop it,
+                # so the next call reads them fresh after the player signs in
+                # again, with no restart (which would lose every game).
+                self._client = None
+                raise ModelAuthError(ModelAuthError.MESSAGE) from exc
             except ClientError as exc:
                 if exc.code == 429 and attempt < 2:
                     await asyncio.sleep(0.6 * (attempt + 1))

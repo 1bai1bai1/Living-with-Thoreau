@@ -19,10 +19,11 @@ class ScriptedLLM:
     ("call", name, args). thoreau: one line per Thoreau call (a missing
     line falls back to the prompt's authored fallback)."""
 
-    def __init__(self, gm=None, thoreau=None, fail_on_round: int | None = None):
+    def __init__(self, gm=None, thoreau=None, fail_on_round: int | None = None, fail_with: Exception | None = None):
         self.gm = list(gm or [])
         self.thoreau = list(thoreau or [])
         self.fail_on_round = fail_on_round
+        self.fail_with = fail_with or RuntimeError("model unavailable")
         self.rounds = 0
         self.gm_calls: list[tuple[str, list]] = []
         self.thoreau_prompts = []
@@ -31,7 +32,7 @@ class ScriptedLLM:
         self.rounds += 1
         self.gm_calls.append((system, list(contents)))
         if self.fail_on_round == self.rounds:
-            raise RuntimeError("model unavailable")
+            raise self.fail_with
         script = self.gm.pop(0) if self.gm else [("text", "Nothing much happens.")]
         parts, calls = [], []
         for item in script:

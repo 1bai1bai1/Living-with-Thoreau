@@ -157,6 +157,37 @@ async def test_a_model_failure_mid_turn_keeps_the_game(session):
     assert session.state.phase == "open"
 
 
+async def test_an_expired_sign_in_says_how_to_fix_it(session):
+    from app.llm import ModelAuthError
+
+    llm = ScriptedLLM(gm=[[("text", "Pines.")]], fail_on_round=2, fail_with=ModelAuthError(ModelAuthError.MESSAGE))
+    await open_scene(session, llm)
+    events = await say(session, llm, "look around")
+    assert "gcloud auth application-default login" in events[-2]["message"]
+    assert session.state.phase == "open"
+
+
+async def test_gemini_reloads_its_credentials_after_a_failed_refresh():
+    import pytest
+    from google.auth.exceptions import RefreshError
+
+    from app.config import Settings
+    from app.llm import GeminiLLM, ModelAuthError
+
+    class ExpiredClient:
+        class aio:  # noqa: N801 - mirrors genai.Client.aio.models
+            class models:  # noqa: N801
+                @staticmethod
+                async def generate_content_stream(**_):
+                    raise RefreshError("Reauthentication is needed.")
+
+    gemini = GeminiLLM(Settings(GOOGLE_CLOUD_PROJECT="test"))
+    gemini._client = ExpiredClient()
+    with pytest.raises(ModelAuthError):
+        await gemini._open([], None)
+    assert gemini._client is None  # the next call builds a client that reads the new sign-in
+
+
 async def test_the_game_master_can_invent_a_side_scene(session):
     llm = ScriptedLLM(gm=[[("text", "Pines.")],
                           [("call", "propose_side_scene", {"title": "A Woodchopper's Song",

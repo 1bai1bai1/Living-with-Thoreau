@@ -36,7 +36,7 @@ from pydantic import BaseModel, Field
 
 from . import director, prompts, rules
 from .beats import Beat, get_beat
-from .llm import LLM, Round, safe_stream
+from .llm import LLM, ModelAuthError, Round, safe_stream
 from .state import GameState
 from .tools import DECLARATIONS, ToolOutcome, approval_key, approval_needed, run_tool
 from .widgets import snapshot
@@ -396,7 +396,9 @@ async def _turn(session: Session, llm: LLM, beat: Beat, turn: Turn, resume: tupl
             yield event
         if session.contents and session.contents[-1].role == "user":
             session.contents.append(_text("model", "(The narrator lost the thread for a moment.)"))
-        yield {"type": "error", "message": "The game master lost the thread for a moment. Try that again."}
+        message = (ModelAuthError.MESSAGE if isinstance(exc, ModelAuthError)
+                   else "The game master lost the thread for a moment. Try that again.")
+        yield {"type": "error", "message": message}
         yield {"type": "ready", "snapshot": snapshot(state)}
         return
 
