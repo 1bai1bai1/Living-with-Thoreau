@@ -53,3 +53,30 @@ def propose_side_scene(state: GameState, title: str, premise: str, location: str
     state.side_scenes_by_season[state.season_index] = used + 1
     state.queued.append(beat_id)
     return beat_id
+
+
+def fast_forward(state: GameState, beat_id: str) -> None:
+    """For testing: start a new game just before an anchor beat, as if the
+    earlier scenes went the way Thoreau would have played them."""
+    if beat_id not in ANCHORS:
+        raise rules.RuleError(f"'{beat_id}' isn't a scene you can start from. Try: {', '.join(ANCHORS)}.")
+    index = ANCHORS.index(beat_id)
+    if index == 0:
+        return
+    for anchor in ANCHORS[:index]:
+        state.history.append(f"{get_beat(anchor, {}).title}: (skipped for testing)")
+    state.anchor_index = index
+    if index > ANCHORS.index("axe"):
+        state.items["timber"] = "Hewn pine timbers"
+    if index > ANCHORS.index("shanty"):
+        state.owned.update({"boards": "shanty", "nails": "salvage"})
+        state.money -= 4250
+    if index > ANCHORS.index("village_run"):
+        state.owned.update({"shingles": "refuse", "windows": "secondhand", "hardware": "store"})
+        state.money -= 6680
+        state.village_trips = 1
+    if index > ANCHORS.index("raising"):
+        state.built.append("frame")
+    if index > ANCHORS.index("roofing"):
+        state.built.append("shell")
+    state.scenes_played = index

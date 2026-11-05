@@ -107,13 +107,41 @@ def test_alignment_and_mood():
     assert rules.tags(["nature", "made_up"], ["comfort"]) == {"nature": 1, "comfort": -1}
 
 
-def test_season_end_turns_free_hours_into_spirit(state):
-    state.hours_left = 60
+def test_seasons_turn_free_hours_into_happiness_and_wants_drain_it(state):
+    state.hours_left = 60  # 40 hours used
     rules.end_season(state)
-    assert state.spirit == 7 and state.season_index == 1 and state.hours_left == 100
+    assert state.happiness == 62 and state.season_index == 1 and state.hours_left == 100  # +12 for 60 free hours
     state.hours_left = -30
     rules.end_season(state)
-    assert state.spirit == 5
+    assert state.happiness == 47  # overworked: -15
+    rules.end_season(state)  # a season with nothing in it passes untouched
+    assert state.happiness == 47 and "aren't written yet" in state.history[-1]
+
+
+def test_the_rabbit_hole(state):
+    step = rules.gain_item(state, "brass_lamp", "A brass lamp from the store", {"superfluity": 1})
+    assert step.happiness == 3 and step.superfluous and state.wants == 1  # it feels nice, at first
+    assert "One more want" in step.lines
+    state.hours_left = 75
+    rules.end_season(state)
+    assert state.happiness == 53 + 15 - 3  # free hours help, but the want drains every season
+    rules.spend_time(state, "A morning in the doorway, listening", 4, {"nature": 1, "solitude": 1})
+    assert state.happiness == 70
+
+
+def test_beat_outcomes_branch_the_story(state):
+    from app import director
+    from app.beats import BEATS
+    from app.tools import run_tool
+
+    director.fast_forward(state, "jail_errand")
+    beat = director.advance(state)
+    assert beat.id == "jail_errand" and state.season_index == 5 and state.built == ["frame", "shell"]
+    bad = run_tool(state, beat, "end_beat", {"summary": "Something happened."})
+    assert "outcome must be one of paid, refused" in bad.result["error"]
+    run_tool(state, beat, "end_beat", {"summary": "Refused the tax.", "outcome": "refused"})
+    assert state.queued == ["jail_night", "huckleberries"]
+    assert director.advance(state).id == "jail_night" and BEATS["jail_night"].branch
 
 
 def test_widget_requests_are_validated():

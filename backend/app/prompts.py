@@ -46,6 +46,7 @@ The world's facts are kept by the server. Use tools for every change that should
 - Time: `spend_time` for any activity that takes hours, `move` to go somewhere, `day_labor` for hired work in the village.
 - Things: `acquire` for house materials, `gain_item` / `lose_item` for anything else.
 - The house: `build` a stage once its materials are in hand. The frame needs the item 'timber'.
+- Tag actions honestly with values_plus / values_minus. Mark anything beyond need (fancy goods, extras, treats bought for their own sake) as superfluity, and rest, a good simple meal or warmth as wellbeing. The rules turn the tags into Thoreau's happiness and his opinion.
 - If a tool returns an error, the thing didn't happen. Narrate around it truthfully.
 - Spending money asks the player first. If they decline, they didn't buy it.
 - Store and yard goods can only be bought in Concord village (move there first), or through the trip_planner widget.
@@ -69,6 +70,7 @@ Situation:
 {situation}
 Goal: {goal}
 On offer only in this scene: {offers}
+Possible outcomes (name one in end_beat): {outcomes}
 What Thoreau wants here (for your awareness; he'll say it himself): {stance}
 {pacing}
 
@@ -86,6 +88,7 @@ def _history(state: GameState, n: int = 8) -> str:
 
 def game_master(state: GameState, beat: Beat, thoreau_said: str | None = None) -> str:
     offers = ", ".join(beat.offers) or "nothing special"
+    outcomes = ", ".join(beat.outcomes) or "none; just summarize"
     pacing = ""
     if state.beat_turns >= 10:
         pacing = "PACING: this scene has run long. Bring it to its goal now, or end it."
@@ -99,6 +102,7 @@ def game_master(state: GameState, beat: Beat, thoreau_said: str | None = None) -
         situation="\n".join(f"- {s}" for s in beat.situation),
         goal=beat.goal,
         offers=offers,
+        outcomes=outcomes,
         stance=beat.thoreau_stance,
         pacing=pacing,
         status=json.dumps(rules.status(state)),
@@ -163,6 +167,20 @@ FALLBACK = {
 }
 
 
+WANTS_TASK = {
+    "first": ("Just now the player got something you don't need: the first want of your life out here. It gave you a "
+              "little lift, and that's exactly the danger. Warn them, with real passion, in 2 or 3 sentences: this is "
+              "how it starts. One unneeded thing makes room for the next, wants multiply, and soon you're working to "
+              "feed them instead of living. It's a road downhill."),
+    "again": ("The player just got another thing you don't need. That makes {wants} wants now, and each one keeps "
+              "costing you, season after season. Say so in 1 or 2 sentences, with mounting worry or exasperation."),
+}
+WANTS_FALLBACK = {
+    "first": "Careful. That felt nice, didn't it? That's how it starts. One thing you don't need, then the next, and soon we're working to feed them.",
+    "again": "Another one. Every want we pick up is a little more of our life we'll owe, every season.",
+}
+
+
 def thoreau_turn(
     state: GameState,
     beat: Beat,
@@ -171,12 +189,16 @@ def thoreau_turn(
     addressed: str | None,
     opening: bool,
     alignment: int | None,
+    superfluity: str | None = None,
 ) -> Prompt:
     recent = "\n".join(transcript[-14:]) or "(nothing yet)"
     if addressed is not None:
         task = (f'The player just spoke to you directly: "{addressed}"\n'
                 "Answer them in 1 to 4 sentences, as yourself. You can disagree, joke, or ask them something back.")
         fallback = FALLBACK["addressed"]
+    elif superfluity is not None:
+        task = WANTS_TASK[superfluity].format(wants=state.wants)
+        fallback = WANTS_FALLBACK[superfluity]
     elif opening:
         task = "The scene has just opened. In 2 or 3 sentences, tell the player what you want to do here and why, with feeling."
         fallback = FALLBACK["opening"]

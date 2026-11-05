@@ -1,6 +1,6 @@
 # Living with Thoreau — Design
 
-Status: first playable slice, Spring 1845 → Summer 1845: 8 anchor beats, plus any side scenes the game master invents. Conversational, with Gemini as the game master. See [research.md](research.md) for the sources.
+Status: playable from Spring 1845 to Summer 1846: 9 anchor beats plus the 2-beat jail branch, and any side scenes the game master invents. Conversational, with Gemini as the game master. See [research.md](research.md) for the sources.
 
 ## Decisions so far
 
@@ -51,31 +51,50 @@ The **State** tab shows the raw snapshot. The server sends these as `debug` SSE 
 ## The numbers
 
 - **Money** is kept in mills (1/1000 of a dollar), so half-cents are exact. You start with $20.00.
-- **Hours**: each season has 100 hours of "life". At the end of a season, every 25 unspent hours becomes +1 spirit, and overwork costs spirit.
+- **Hours**: each season has 100 hours of "life". What's left at season end feeds happiness (see below).
 - **Alignment** comes from what the tools did. Materials carry value tags (the shanty: frugality and self-reliance; sawn boards: convenience). For free-form actions (`spend_time`, `adjust_money`), the game master supplies the tags. The weights reflect what Thoreau cares about. The running sum, the **drift**, sets his mood: kindred, hopeful, uneasy or estranged.
 - **House**: frame 25%, walls and roof 45%, chimney 15%, plaster 15%. Rough shanty boards make it *drafty*.
 
-## Under discussion (2026-11-05)
+## Happiness and the rabbit hole
 
-**Economy:** stays at money, hours and the house. No food, fuel or clothing resources.
+Happiness replaced "spirit". It runs from 0 to 100, starting at 50, and measures Thoreau's well-being: how well he's actually *living*. That's separate from his opinion of your choices (drift), and the two can disagree. A big Sunday dinner at the Emersons' makes him happier while he grumbles about it.
 
-**Happiness bar** (proposed; it would replace "spirit"): Thoreau's well-being, 0–100, which is separate from his *opinion* of you (drift).
-- Rises with what he'd call deliberate living: time in nature, solitude, simple good food, rest, real company in moderation, acting on conscience, free hours left in a season.
-- Falls with overwork, debt, the village gauntlet, and **superfluities**, meaning things beyond need.
-- **The rabbit hole:** a superfluity feels good for a moment (+) but adds 1 to `wants`. Every season end then drains happiness by `wants`, so each unneeded thing keeps costing. This is *Walden*'s "positive hindrances" idea, played as a mechanic.
-- Two new value tags: `wellbeing` and `superfluity`. Happiness is computed by the server from tool tags, like alignment, with its own weights.
-- Drift and happiness can disagree. A big Sunday dinner at the Emersons' makes him happier, but he grumbles about it.
+- **Per action:** every tool's value tags move happiness through `rules.HAPPINESS_WEIGHTS`, by at most ±10 per action. The weights: wellbeing 4, nature 3, conscience 3, solitude 2, simplicity 2, sociability 1.5, self-reliance 1, comfort 1, frugality 0.5, status −2.
+- **The two tags added for this:**
+  - `wellbeing`: rest, a good simple meal, warmth.
+  - `superfluity`: anything beyond need.
+- **The rabbit hole:** a superfluity gives a small lift (+3, which is the trap) and adds 1 to `wants`. Every season end drains 3 happiness per want, forever.
+- **Thoreau's warnings:** the first want obliges Thoreau to warn you passionately ("this is how it starts… a road downhill"). Each later want gets a shorter, more exasperated warning. He speaks even if the model would rather he stayed silent; an authored line stands in.
+- **One want per turn:** the model often tags one purchase on two or three tools (the time spent browsing, paying, the item itself), so a turn adds at most one want.
+- **Season end:** free hours left give +1 per 5 hours (max +20), and overwork costs 1 per 2 hours over (max −30). A season with no scenes in it yet passes without changing anything.
+- **On screen:** a meter in the header, colored by level, with "· N wants" once you have any.
 
-**The jail night** (proposed) is a three-beat branch in July 1846:
-1. **The Shoemaker's Errand.** In Concord, Sam Staples stops you over unpaid poll tax. You can pay, refuse, argue, or let Staples pay for you. `end_beat` takes an *outcome*, and "refused" queues the next two beats.
-2. **A Night in the Concord Jail.** A cellmate accused of burning a barn, the town heard through the window, and Thoreau's ideas on conscience coming alive. That evening someone (a veiled woman) pays your tax, and Staples won't let you out until morning.
-3. **Huckleberries.** Released and furious that someone paid, you finish the errand and lead a huckleberry party up the hill. The town looks different now.
+## Branching: beat outcomes
 
-This needs **beat outcomes**: a beat declares its possible outcomes, `end_beat(outcome=...)` picks one, and the director queues that outcome's follow-up beats. The poll tax amount would be a game price.
+A beat can declare `outcomes: {name: [follow-up beat ids]}`. The game master must name one in `end_beat(outcome=…)`; an unknown or missing outcome is refused. The director then queues the follow-up beats ahead of the next anchor. Beats reached only this way are marked `branch`.
+
+## The night in jail (July 1846)
+
+The first branch, played live end to end:
+1. **The Shoemaker's Errand** (an anchor, in Concord village). Sam Staples asks for $6.00 of back poll tax (a game price).
+   - `paid` (you pay, or let Staples pay) → the story goes on.
+   - `refused` → the next two beats.
+2. **A Night in the Concord Jail.** The cellmate accused of burning a barn, the town heard through the grated window, and Thoreau at his most alive. Partway through, Staples brings news that a veiled woman has paid, but he has his boots off and won't open up until morning.
+3. **Huckleberries.** Released at breakfast and furious that someone paid, you collect the mended shoe and lead the huckleberry party up the hill.
+
+The seasons between the bean-field and the errand (Autumn 1845 to Spring 1846) aren't written yet, so for now the story jumps straight there.
+
+## Testing aids
+
+The debug panel has **New game at** [scene] → **Start**. It begins a fresh game just before any anchor, as if the earlier scenes went Thoreau's way (`director.fast_forward`; `POST /api/game/new {"start": id}`; `GET /api/game/beats`).
 
 ## Next up
 
-- Content for Autumn 1845 → Summer 1847, about 12 more anchors: chimney and plaster before the frost, the first harvest, the woodchopper, winter fuel and the ice-cutters, the jail night (July 1846), John Field at Baker Farm, the second smaller field, and leaving on Sept 6, 1847.
+- Content for the gaps, about 10 more anchors:
+  - Autumn 1845: the chimney and plaster before the frost.
+  - Winter 1845–46: the pond freezes, the woodpile, the ice-cutters, winter visitors.
+  - Spring 1846: the first harvest and the ledger, Alek Therien.
+  - Autumn 1846 → Summer 1847: John Field at Baker Farm, a smaller second field, a second winter, and leaving on Sept 6, 1847.
 - Give the director its own nudges for side scenes (low fuel, an unmet visitor, a big drift), alongside the game master's proposals.
-- An ending that reflects how you lived: your ledger against Thoreau's, his last word on you.
+- An ending that reflects how you lived: your ledger against Thoreau's, your happiness and wants, and his last word on you.
 - Persist sessions beyond memory, and add the journal page.

@@ -26,6 +26,9 @@ class Beat(BaseModel):
     offers: list[str] = Field(default_factory=list)  # "material:method" for where="scene" methods
     requires_items: list[str] = Field(default_factory=list)  # checked before end_beat
     requires_built: list[str] = Field(default_factory=list)
+    # Possible endings, each with the beats it leads to. If set, end_beat must name one.
+    outcomes: dict[str, list[str]] = Field(default_factory=dict)
+    branch: bool = False  # only reached through another beat's outcome
     side: bool = False
 
 
@@ -157,11 +160,80 @@ BEATS: dict[str, Beat] = {
             thoreau_stance="Seven and a half dollars for plowing is too much. He'd spade a smaller patch himself and keep his afternoons free.",
             people=["A farmer with a horse and plow for hire"],
         ),
+        # --- The night in jail (July 1846): a three-beat branch -------------------------
+        Beat(
+            id="jail_errand",
+            season_index=5,
+            title="The Shoemaker's Errand",
+            when="Late July 1846",
+            location="village",
+            situation=[
+                "Late July, 1846. The player has walked into Concord village to pick up a shoe left at the cobbler's for mending.",
+                "Sam Staples steps into the road: Concord's constable, jailer and tax collector, a friendly man the player knows well.",
+                "He's collecting overdue poll tax. The player hasn't paid it for several years: $6.00 is owed (a game price).",
+                "The poll tax goes to the state of Massachusetts. The player, being Thoreau, believes that state upholds slavery and backs the war on Mexico.",
+                "Staples has offered, half joking, to pay it himself if money's the trouble. If the player won't pay, the law says he has to lock them up.",
+            ],
+            goal=(
+                "Resolve the tax. If the player pays (adjust_money -6.00, tag the conscience they're setting aside) or lets "
+                "Staples pay for them, end with outcome 'paid'. If they refuse, Staples walks them to the jail across the "
+                "square: end with outcome 'refused'."
+            ),
+            thoreau_stance=(
+                "He will not pay. It isn't the money: he won't give a cent to a state that buys and sells men and makes war "
+                "on Mexico. He'd rather go to jail, and he wants the player to feel why. Paying would wound him."
+            ),
+            people=["Sam Staples", "Townsfolk watching from the store porch", "The cobbler, with the mended shoe"],
+            outcomes={"paid": [], "refused": ["jail_night", "huckleberries"]},
+        ),
+        Beat(
+            id="jail_night",
+            season_index=5,
+            title="A Night in the Concord Jail",
+            when="That night",
+            location="The Middlesex County jail in Concord",
+            branch=True,
+            situation=[
+                "A stone cell with an iron-grated window and a heavy oak door. Staples locked it himself.",
+                "The player's cellmate is a quiet man awaiting trial, accused of burning a barn. He says he didn't do it: he fell asleep in it with his pipe.",
+                "Through the window come the sounds of Concord at night: the town clock, voices and clatter from the inn kitchen next door.",
+                "Sometime this evening, Staples returns with news: someone, a woman with her face veiled, has paid the player's tax. But Staples has his boots off and won't open up again until morning. Bring this in when the moment feels right.",
+            ],
+            goal=(
+                "The night passes. Let the player talk with the cellmate, look out at the town, think, and talk to Thoreau. "
+                "Bring in Staples's news partway through. Call spend_time for the night. End when morning comes."
+            ),
+            thoreau_stance=(
+                "This is the most alive he's been. He feels freer in here than the men outside: the walls only hold his "
+                "body. He's working out what conscience owes the state, and he wants to talk."
+            ),
+            people=["Sam Staples, the jailer", "The cellmate", "A veiled woman, never seen"],
+        ),
+        Beat(
+            id="huckleberries",
+            season_index=5,
+            title="Huckleberries",
+            when="The next morning",
+            location="village",
+            branch=True,
+            situation=[
+                "Morning. Staples brings breakfast and opens the door. The tax has been paid, and the player is free to go whether they like it or not.",
+                "The mended shoe is still waiting at the cobbler's.",
+                "A party of friends is heading out to pick huckleberries on a hill a couple of miles off, and they'd welcome a leader who knows the best bushes.",
+                "The village looks different this morning.",
+            ],
+            goal="The player leaves the jail, finishes the errand if they like, and spends the day however they choose, ideally up among the huckleberries. End when the day settles.",
+            thoreau_stance=(
+                "He's furious that someone paid, and he refuses to let it spoil a good day. Within half an hour he'd rather "
+                "be on a hill full of huckleberries than anywhere in the state of Massachusetts."
+            ),
+            people=["Sam Staples", "Friends bound for the huckleberry hill"],
+        ),
     ]
 }
 
-# The spine of the story, in order.
-ANCHORS: list[str] = ["axe", "shanty", "cellar", "village_run", "raising", "roofing", "move_in", "beans"]
+# The spine of the story, in order. (Branch beats are reached through outcomes.)
+ANCHORS: list[str] = ["axe", "shanty", "cellar", "village_run", "raising", "roofing", "move_in", "beans", "jail_errand"]
 
 
 def side_beat(beat_id: str, season_index: int, title: str, premise: str, location: str) -> Beat:

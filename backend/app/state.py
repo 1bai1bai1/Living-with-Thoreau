@@ -10,7 +10,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from .world import SEASONS, START_MILLS, START_SPIRIT
+from .world import SEASONS, START_HAPPINESS, START_MILLS
 
 
 class LedgerEntry(BaseModel):
@@ -30,7 +30,8 @@ class GameState(BaseModel):
     money: int = START_MILLS  # mills
     hours_left: int = SEASONS[0].hours
     hours_spent: int = 0
-    spirit: int = START_SPIRIT  # 0-10
+    happiness: int = START_HAPPINESS  # 0-100: how well Thoreau is actually living
+    wants: int = 0  # superfluities acquired; each drains happiness every season
     drift: int = 0  # running sum of how Thoreau feels about your choices
     village_trips: int = 0
 
@@ -51,6 +52,7 @@ class GameState(BaseModel):
     beat_turns: int = 0
     beat_done: bool = False
     beat_summary: str | None = None
+    beat_outcome: str | None = None
     phase: Literal["between", "open", "approval"] = "between"
     finished: bool = False
 

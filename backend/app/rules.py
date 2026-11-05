@@ -18,7 +18,7 @@ from .state import GameState, LedgerEntry
 from .world import (
     LOCATIONS,
     MATERIALS,
-    MAX_SPIRIT,
+    MAX_HAPPINESS,
     PLACES,
     SEASONS,
     STAGE_BY_ID,
@@ -38,11 +38,32 @@ THOREAU_WEIGHTS: dict[str, float] = {
     "nature": 1.5,
     "solitude": 1,
     "sociability": 0.5,
+    "wellbeing": 0.5,
     "comfort": -1,
     "convenience": -1.5,
     "status": -2,
+    "superfluity": -2.5,
 }
 VALUE_TAGS = tuple(THOREAU_WEIGHTS)
+
+# How the same values move his happiness: how well he's actually living,
+# which isn't the same as whether he approves. A superfluity gives a small
+# lift (that's the trap); its real cost is the `wants` it adds.
+HAPPINESS_WEIGHTS: dict[str, float] = {
+    "wellbeing": 4,
+    "nature": 3,
+    "conscience": 3,
+    "solitude": 2,
+    "simplicity": 2,
+    "sociability": 1.5,
+    "self_reliance": 1,
+    "comfort": 1,
+    "frugality": 0.5,
+    "superfluity": 3,
+    "status": -2,
+}
+MAX_HAPPINESS_PER_ACTION = 10
+WANT_DRAIN_PER_SEASON = 3
 
 MAX_HOURS_PER_ACTION = 40
 MAX_MONEY_PER_ADJUST = mills(10.00)
@@ -58,6 +79,8 @@ class Step(BaseModel):
     lines: list[str] = Field(default_factory=list)  # for the player: "Spent $4.25", "13 hours"
     data: dict = Field(default_factory=dict)  # for the model
     score: float | None = None  # how Thoreau weighs it; None: no opinion
+    happiness: int = 0  # how it changed his happiness
+    superfluous: bool = False  # it added to his wants
 
 
 # --- Thoreau's opinion -------------------------------------------------------------
@@ -71,6 +94,27 @@ def tags(plus: list[str] | None, minus: list[str] | None) -> dict[str, int]:
     values = {t: 1 for t in (plus or []) if t in VALUE_TAGS}
     values.update({t: -1 for t in (minus or []) if t in VALUE_TAGS})
     return values
+
+
+def feel(state: GameState, values: dict[str, int]) -> tuple[int, bool]:
+    """Apply an action's values to happiness. Returns (change, superfluous)."""
+    raw = sum(HAPPINESS_WEIGHTS.get(tag, 0) * v for tag, v in values.items())
+    change = max(-MAX_HAPPINESS_PER_ACTION, min(MAX_HAPPINESS_PER_ACTION, round(raw)))
+    superfluous = values.get("superfluity", 0) > 0
+    if superfluous:
+        state.wants += 1
+    state.happiness = max(0, min(MAX_HAPPINESS, state.happiness + change))
+    return change, superfluous
+
+
+def _felt(state: GameState, step: "Step", values: dict[str, int]) -> "Step":
+    change, superfluous = feel(state, values)
+    step.happiness, step.superfluous = change, superfluous
+    if change:
+        step.lines.append(f"Happiness {change:+d}")
+    if superfluous:
+        step.lines.append("One more want")
+    return step
 
 
 def turn_alignment(score: float) -> int:
@@ -125,7 +169,8 @@ def status(state: GameState) -> dict:
         "location": state.location_name,
         "money": fmt_money(state.money),
         "hours_left_this_season": state.hours_left,
-        "spirit": f"{state.spirit}/10",
+        "happiness": f"{state.happiness}/100",
+        "wants": state.wants,
         "materials": {MATERIALS[m].name: MATERIALS[m].method(meth).label for m, meth in state.owned.items()},
         "items": dict(state.items),
         "house": {s.label: stage_status(state, s) for s in STAGES},
@@ -194,9 +239,10 @@ def build(state: GameState, stage_id: str, hours: int) -> Step:
     hours = max(1, min(MAX_HOURS_PER_ACTION, int(hours)))
     state.built.append(stage_id)
     _spend(state, 0, hours, f"Building: {stage.label.lower()}", "house")
-    return Step(lines=[f"Built: {stage.label.lower()}", *_lines(0, hours)],
+    step = Step(lines=[f"Built: {stage.label.lower()}", *_lines(0, hours)],
                 data={"built": stage.label, "house_percent": house_percent(state), "quality": house_quality(state)},
                 score=value_score({"self_reliance": 1}))
+    return _felt(state, step, {"self_reliance": 1, "wellbeing": 1})
 
 
 # --- Materials -----------------------------------------------------------------------
@@ -229,11 +275,11 @@ def acquire(state: GameState, material: str, method_id: str, offers: list[str]) 
     state.owned[material] = method_id
     _spend(state, method.cost, method.hours, method.label, "house")
     rough = " (rough)" if method.quality == "rough" else ""
-    return Step(lines=[f"Got {mat.name.lower()}{rough}", *_lines(method.cost, method.hours)],
+    return _felt(state, Step(lines=[f"Got {mat.name.lower()}{rough}", *_lines(method.cost, method.hours)],
                 data={"acquired": mat.name, "how": method.label, "cost": fmt_money(method.cost),
                       "hours_already_counted": method.hours, "money_left": fmt_money(state.money),
                       "note": "Paid and recorded. Don't charge or refund it with adjust_money."},
-                score=value_score(method.values))
+                score=value_score(method.values)), method.values)
 
 
 # --- Time, money, things, places -------------------------------------------------------
@@ -242,9 +288,10 @@ def acquire(state: GameState, material: str, method_id: str, offers: list[str]) 
 def spend_time(state: GameState, activity: str, hours: int, values: dict[str, int]) -> Step:
     hours = max(0, min(MAX_HOURS_PER_ACTION, int(hours)))
     _spend(state, 0, hours, activity, "other")
-    return Step(lines=[activity[:60], *_lines(0, hours)] if hours else [],
+    step = Step(lines=[activity[:60], *_lines(0, hours)] if hours else [activity[:60]],
                 data={"activity": activity, "hours": hours, "hours_left_this_season": state.hours_left},
                 score=value_score(values) if values else None)
+    return _felt(state, step, values)
 
 
 def adjust_money(state: GameState, dollars: float, reason: str, values: dict[str, int], kind: str = "other") -> Step:
@@ -255,9 +302,10 @@ def adjust_money(state: GameState, dollars: float, reason: str, values: dict[str
         raise RuleError(f"That costs {fmt_money(-amount)}; the player has {fmt_money(state.money)}.")
     kind = kind if kind in ("house", "farm", "labor", "tools", "other") else "other"
     _spend(state, -amount, 0, reason, kind)
-    return Step(lines=[reason[:60], *_lines(-amount, 0)],
+    step = Step(lines=[reason[:60], *_lines(-amount, 0)],
                 data={"change": fmt_money(amount, signed=True), "reason": reason, "money_now": fmt_money(state.money)},
                 score=value_score(values) if values else None)
+    return _felt(state, step, values)
 
 
 def day_labor(state: GameState, task: str) -> Step:
@@ -265,15 +313,18 @@ def day_labor(state: GameState, task: str) -> Step:
         raise RuleError(f"Day labor is found in Concord village; the player is at {state.location_name}.")
     place = PLACES["labor"]
     _spend(state, -place.pay, place.stop_hours, f"Day labor: {task}", "labor")
-    return Step(lines=[f"Day labor: {task[:40]}", *_lines(-place.pay, place.stop_hours)],
+    step = Step(lines=[f"Day labor: {task[:40]}", *_lines(-place.pay, place.stop_hours)],
                 data={"earned": fmt_money(place.pay), "hours": place.stop_hours, "money_now": fmt_money(state.money)},
                 score=value_score({"self_reliance": 1}))
+    return _felt(state, step, {"self_reliance": 1})
 
 
-def gain_item(state: GameState, key: str, label: str) -> Step:
+def gain_item(state: GameState, key: str, label: str, values: dict[str, int] | None = None) -> Step:
     key = slug(key)
     state.items[key] = label[:80]
-    return Step(lines=[f"Got {label[:60]}"], data={"items": dict(state.items)})
+    step = Step(lines=[f"Got {label[:60]}"], data={"items": dict(state.items)},
+                score=value_score(values) if values else None)
+    return _felt(state, step, values or {})
 
 
 def lose_item(state: GameState, key: str) -> Step:
@@ -385,15 +436,25 @@ def apply_trip(state: GameState, stops: list[str], buys: dict[str, str]) -> Step
 
 
 def end_season(state: GameState) -> str:
-    """Close the season: leftover hours become spirit, overwork costs it."""
+    """Close the season. Free hours left over make him happier, overwork
+    costs happiness, and every want he's picked up drains a little more.
+    A season with no scenes in it yet (the story isn't written that far)
+    passes without changing anything."""
     left = state.hours_left
-    if left >= 0:
-        change = left // 25
-        note = f"{state.season.label} ended with {left} free hours to spare."
+    played = left != state.season.hours or any(e.season == state.season.label for e in state.ledger)
+    if not played:
+        note = f"{state.season.label} passed (its scenes aren't written yet)."
     else:
-        change = -math.ceil(-left / 20)
-        note = f"{state.season.label} ended overworked, {-left} hours past what you had."
-    state.spirit = max(0, min(MAX_SPIRIT, state.spirit + change))
+        if left >= 0:
+            change = min(20, left // 5)
+            note = f"{state.season.label} ended with {left} free hours to spare."
+        else:
+            change = -min(30, math.ceil(-left / 2))
+            note = f"{state.season.label} ended overworked, {-left} hours past what you had."
+        if state.wants:
+            change -= WANT_DRAIN_PER_SEASON * state.wants
+            note += f" {state.wants} want{'s' if state.wants != 1 else ''} kept nagging."
+        state.happiness = max(0, min(MAX_HAPPINESS, state.happiness + change))
     state.history.append(note)
     state.season_index += 1
     state.hours_left = SEASONS[state.season_index].hours

@@ -6,7 +6,8 @@ export type Hud = {
   money: number; // mills: thousandths of a dollar
   hours_left: number;
   season_hours: number;
-  spirit: number;
+  happiness: number; // 0-100
+  wants: number; // superfluities: each drains happiness every season
   house_percent: number;
   drift: number;
   mood: 'kindred' | 'hopeful' | 'uneasy' | 'estranged';
@@ -110,8 +111,20 @@ async function errorFrom(res: Response): Promise<ApiError> {
   return new ApiError(res.status, detail);
 }
 
-export async function newGame(): Promise<{ session_id: string; snapshot: Snapshot }> {
-  const res = await fetch('/api/game/new', { method: 'POST' });
+export async function newGame(start?: string): Promise<{ session_id: string; snapshot: Snapshot }> {
+  const res = await fetch('/api/game/new', {
+    method: 'POST',
+    headers: start ? { 'Content-Type': 'application/json' } : undefined,
+    body: start ? JSON.stringify({ start }) : undefined,
+  });
+  if (!res.ok) throw await errorFrom(res);
+  return res.json();
+}
+
+export type BeatInfo = { id: string; title: string; when: string | null };
+
+export async function listBeats(): Promise<BeatInfo[]> {
+  const res = await fetch('/api/game/beats');
   if (!res.ok) throw await errorFrom(res);
   return res.json();
 }

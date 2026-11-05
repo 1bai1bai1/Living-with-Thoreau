@@ -190,3 +190,20 @@ async def test_the_debug_panel_sees_every_decision(session):
     assert tool["name"] == "acquire" and tool["status"] == "ok" and tool["score"] == 6
     thoreau = next(e for e in debug if e["kind"] == "thoreau")
     assert thoreau["alignment"] == 2 and thoreau["turn_score"] == 6 and thoreau["silent"] is False
+
+
+async def test_the_first_want_gets_a_warning(session):
+    llm = ScriptedLLM(gm=[[("text", "Pines.")],
+                          [("call", "gain_item", {"key": "brass_lamp", "label": "A brass lamp",
+                                                  "values_plus": ["superfluity", "comfort"]}),
+                           ("call", "spend_time", {"activity": "Choosing a lamp", "hours": 1,
+                                                   "values_plus": ["superfluity"]})],
+                          [("text", "The lamp gleams on the stump.")]],
+                      thoreau=["Hello.", "(silent)"])
+    await open_scene(session, llm)
+    events = await say(session, llm, "I buy a fine brass lamp for the house")
+    assert session.state.wants == 1  # one lamp, one want, even when the model tags it twice
+    assert session.state.happiness > 50  # a little lift: that's the trap
+    assert "first want" in llm.thoreau_prompts[-1].user
+    # He must speak even if the model tries to stay silent: the authored warning stands in.
+    assert "That's how it starts" in text_of(events, "thoreau")

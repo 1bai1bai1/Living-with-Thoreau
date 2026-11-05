@@ -34,7 +34,7 @@ class Season(BaseModel):
     index: int
     key: SeasonKey
     label: str
-    hours: int  # hours of "life" to spend in this season before it costs spirit
+    hours: int  # hours of "life" to spend in this season; overwork costs happiness
 
 
 SEASONS: list[Season] = [
@@ -51,8 +51,8 @@ SEASONS: list[Season] = [
 ]
 
 START_MILLS = mills(20.00)
-START_SPIRIT = 5
-MAX_SPIRIT = 10
+START_HAPPINESS = 50
+MAX_HAPPINESS = 100
 
 
 # --- Materials ---------------------------------------------------------------

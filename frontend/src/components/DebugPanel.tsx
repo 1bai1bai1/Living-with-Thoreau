@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
-import type { DebugEvent, Snapshot } from '../api';
+import { listBeats, type BeatInfo, type DebugEvent, type Snapshot } from '../api';
 
 // A developer's view of the loop: each turn's input, every game-master round
 // (with the exact prompt it saw), every tool call with what the rules said,
@@ -82,7 +82,7 @@ function Row({ e, round, showPrompts }: { e: DebugEvent; round: number; showProm
           <div className="text-paper/65">
             turn value score {e.turn_score === null ? 'none (no scored actions)' : String(e.turn_score)}
             {e.alignment !== null && ` → tone ${Number(e.alignment) > 0 ? '+' : ''}${String(e.alignment)}`} · drift {String(e.drift)} ({String(e.mood)}) ·{' '}
-            {e.silent ? 'stayed silent' : 'spoke'} · {String(e.ms)} ms
+            {e.silent ? 'stayed silent' : 'spoke'} · {String(e.ms)} ms · happiness {String(e.happiness)}, wants {String(e.wants)}
           </div>
           {e.addressed ? <div className="text-paper/55">Routed to him: “{String(e.addressed)}”</div> : null}
           {showPrompts && <Details label="Thoreau's prompt">{String(e.prompt)}</Details>}
@@ -95,8 +95,30 @@ function Row({ e, round, showPrompts }: { e: DebugEvent; round: number; showProm
   }
 }
 
-export default function DebugPanel({ events, snapshot, onClear, onClose }: { events: DebugEvent[]; snapshot: Snapshot | null; onClear: () => void; onClose: () => void }) {
+export default function DebugPanel({
+  events,
+  snapshot,
+  onClear,
+  onClose,
+  onStartAt,
+}: {
+  events: DebugEvent[];
+  snapshot: Snapshot | null;
+  onClear: () => void;
+  onClose: () => void;
+  onStartAt: (beatId: string) => void;
+}) {
   const [tab, setTab] = useState<'events' | 'state'>('events');
+  const [beats, setBeats] = useState<BeatInfo[]>([]);
+  const [startAt, setStartAt] = useState('');
+  useEffect(() => {
+    listBeats()
+      .then((bs) => {
+        setBeats(bs);
+        setStartAt(bs[bs.length - 1]?.id ?? '');
+      })
+      .catch(() => setBeats([]));
+  }, []);
   const [showPrompts, setShowPrompts] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
@@ -136,6 +158,30 @@ export default function DebugPanel({ events, snapshot, onClear, onClose }: { eve
         <button type="button" onClick={onClear} className="rounded border border-white/15 px-2 py-1 text-paper/70 hover:text-paper">Clear</button>
         <button type="button" onClick={onClose} className="rounded border border-white/15 px-2 py-1 text-paper/70 hover:text-paper">Close</button>
       </header>
+
+      {beats.length > 0 && (
+        <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+          <label htmlFor="debug-start" className="text-paper/60">
+            New game at
+          </label>
+          <select
+            id="debug-start"
+            value={startAt}
+            onChange={(e) => setStartAt(e.target.value)}
+            className="min-w-0 flex-1 rounded border border-white/15 bg-[#0a0f17] px-1.5 py-1 text-paper"
+          >
+            {beats.map((b, i) => (
+              <option key={b.id} value={b.id}>
+                {i + 1}. {b.title}
+                {b.when ? ` (${b.when})` : ''}
+              </option>
+            ))}
+          </select>
+          <button type="button" onClick={() => startAt && onStartAt(startAt)} className="rounded border border-white/15 px-2 py-1 text-paper/80 hover:text-paper">
+            Start
+          </button>
+        </div>
+      )}
 
       {tab === 'events' ? (
         <>

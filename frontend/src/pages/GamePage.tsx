@@ -244,12 +244,12 @@ export default function GamePage() {
     await run((signal) => streamAct(sid, action, onEvent, signal));
   }
 
-  async function begin(resume: boolean) {
+  async function begin(resume: boolean, start?: string) {
     setFatal(null);
     setEnding(null);
     setPhase('loading');
     try {
-      let id = resume ? saved : null;
+      let id = resume && !start ? saved : null;
       if (id) {
         try {
           setSnapshot((await getGame(id)).snapshot);
@@ -258,7 +258,7 @@ export default function GamePage() {
         }
       }
       if (!id) {
-        const game = await newGame();
+        const game = await newGame(start);
         id = game.session_id;
         setSnapshot(game.snapshot);
         saveSession(id);
@@ -362,7 +362,20 @@ export default function GamePage() {
       </main>
 
       {debugOpen && (
-        <DebugPanel events={debugEvents} snapshot={snapshot} onClear={() => setDebugEvents([])} onClose={() => setDebugOpen(false)} />
+        <DebugPanel
+          events={debugEvents}
+          snapshot={snapshot}
+          onClear={() => setDebugEvents([])}
+          onClose={() => setDebugOpen(false)}
+          onStartAt={(beatId) => {
+            abortRef.current?.abort();
+            saveSession(null);
+            setSaved(null);
+            setScene(null);
+            setDebugEvents([]);
+            void begin(false, beatId);
+          }}
+        />
       )}
 
       {drawer && snapshot && (

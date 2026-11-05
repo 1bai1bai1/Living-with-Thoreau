@@ -24,9 +24,11 @@ def _obj(props: dict, required: list[str] | None = None) -> types.Schema:
     return S(type="OBJECT", properties=props, required=required or [])
 
 
+_TAG_HELP = (" 'wellbeing': rest, a good simple meal, warmth, health. 'superfluity': anything beyond need "
+             "(a fancy lamp, a rug, a second coat, store-bought treats, more than is necessary).")
 _VALUES = {
     "values_plus": S(type="ARRAY", items=S(type="STRING", enum=list(rules.VALUE_TAGS)),
-                     description="Values this expresses."),
+                     description="Values this expresses." + _TAG_HELP),
     "values_minus": S(type="ARRAY", items=S(type="STRING", enum=list(rules.VALUE_TAGS)),
                       description="Values this goes against."),
 }
@@ -86,8 +88,10 @@ DECLARATIONS = [
     ),
     types.FunctionDeclaration(
         name="gain_item",
-        description="The player gets something that isn't a house material: 'timber', 'borrowed_axe', a book, a fish, a letter.",
-        parameters=_obj({"key": S(type="STRING", description="snake_case id"), "label": S(type="STRING")}, ["key", "label"]),
+        description=("The player gets something that isn't a house material: 'timber', 'borrowed_axe', a book, a fish, "
+                     "a letter. Tag it: anything beyond need is a superfluity."),
+        parameters=_obj({"key": S(type="STRING", description="snake_case id"), "label": S(type="STRING"), **_VALUES},
+                        ["key", "label"]),
     ),
     types.FunctionDeclaration(
         name="lose_item",
@@ -120,8 +124,9 @@ DECLARATIONS = [
     ),
     types.FunctionDeclaration(
         name="end_beat",
-        description="This scene's goal has been met: end it with a one-sentence summary of what happened.",
-        parameters=_obj({"summary": S(type="STRING")}, ["summary"]),
+        description=("This scene's goal has been met: end it with a one-sentence summary of what happened. If the "
+                     "scene lists possible outcomes, name the one that happened."),
+        parameters=_obj({"summary": S(type="STRING"), "outcome": S(type="STRING")}, ["summary"]),
     ),
 ]
 
@@ -132,6 +137,7 @@ class ToolOutcome:
     events: list[dict] = field(default_factory=list)  # streamed to the browser
     score: float | None = None
     handed_to_thoreau: str | None = None
+    superfluous: bool = False
 
 
 def approval_key(name: str, args: dict) -> str:
@@ -159,7 +165,10 @@ def approval_needed(state: GameState, beat: Beat, name: str, args: dict) -> dict
 
 def _step(state: GameState, name: str, step: rules.Step) -> ToolOutcome:
     events = [{"type": "step", "tool": name, "lines": step.lines, "snapshot": snapshot(state)}] if step.lines else []
-    return ToolOutcome(result={"ok": True, **step.data}, events=events, score=step.score)
+    result = {"ok": True, **step.data}
+    if step.happiness or step.superfluous:
+        result["happiness"] = {"change": step.happiness, "now": state.happiness, "wants": state.wants}
+    return ToolOutcome(result=result, events=events, score=step.score, superfluous=step.superfluous)
 
 
 def run_tool(state: GameState, beat: Beat, name: str, args: dict) -> ToolOutcome:
@@ -197,7 +206,7 @@ def _run(state: GameState, beat: Beat, name: str, args: dict) -> ToolOutcome:
     if name == "day_labor":
         return _step(state, name, rules.day_labor(state, str(args.get("task", "odd jobs"))))
     if name == "gain_item":
-        return _step(state, name, rules.gain_item(state, str(args["key"]), str(args.get("label", args["key"]))))
+        return _step(state, name, rules.gain_item(state, str(args["key"]), str(args.get("label", args["key"])), values))
     if name == "lose_item":
         return _step(state, name, rules.lose_item(state, str(args["key"])))
     if name == "show_widget":
@@ -219,7 +228,13 @@ def _run(state: GameState, beat: Beat, name: str, args: dict) -> ToolOutcome:
         missing += [f"the {s} built" for s in beat.requires_built if s not in state.built]
         if missing:
             raise rules.RuleError(f"This scene's goal isn't met yet: it needs {', '.join(missing)}.")
+        outcome = str(args.get("outcome") or "").strip() or None
+        if beat.outcomes:
+            if outcome not in beat.outcomes:
+                raise rules.RuleError(f"Name what happened: outcome must be one of {', '.join(beat.outcomes)}.")
+            state.queued = list(beat.outcomes[outcome]) + state.queued
         state.beat_done = True
         state.beat_summary = str(args.get("summary", ""))[:300]
+        state.beat_outcome = outcome
         return ToolOutcome(result={"ok": True, "note": "The scene is over. Finish your narration in a sentence or two."})
     raise rules.RuleError(f"There's no tool called {name}.")

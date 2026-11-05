@@ -85,6 +85,8 @@ class Turn:
     scored: bool = False
     addressed: str | None = None  # what the player said to Thoreau, if they spoke to him
     calls: int = 0
+    superfluity: str | None = None  # "first" or "again" if this turn added a want
+    wants_at_start: int | None = None
     paid: list[int] = field(default_factory=list)  # material prices paid this turn, in mills
     work_hours: list[int] = field(default_factory=list)  # hours those materials took
 
@@ -133,8 +135,8 @@ def _ending(state: GameState) -> dict:
     return {
         "type": "ending",
         "title": "To be continued",
-        "text": ("That's as far as this first stretch of the story goes: the house closed in and the beans in the "
-                 "ground. Autumn, the chimney, and the long winter come next."),
+        "text": ("That's as far as the story is written for now. The house is closed in, the beans are in, and the "
+                 "night in jail is behind you. The chimney, the winters and leaving the woods come next."),
         "scenes_played": state.scenes_played,
         "snapshot": snapshot(state),
     }
@@ -246,6 +248,8 @@ async def stream_act(session: Session, llm: LLM, action) -> AsyncIterator[dict]:
 async def _turn(session: Session, llm: LLM, beat: Beat, turn: Turn, resume: tuple[Pending, bool] | None = None):
     state = session.state
     narrating = False
+    if turn.wants_at_start is None:
+        turn.wants_at_start = state.wants
 
     def flush():
         nonlocal narrating
@@ -291,6 +295,13 @@ async def _turn(session: Session, llm: LLM, beat: Beat, turn: Turn, resume: tupl
                 yield {"type": "step", "tool": call.name, "lines": [f"Declined: {ask['detail'].rstrip('.')}"]}
             else:
                 outcome = run_tool(state, beat, call.name, args)
+                if outcome.superfluous and state.wants > turn.wants_at_start + 1:
+                    # One purchase often gets tagged on two tools (paying for it, the time it took).
+                    # A turn adds at most one want.
+                    state.wants = turn.wants_at_start + 1
+                    for event in outcome.events:
+                        if event["type"] == "step":
+                            event["lines"] = [line for line in event["lines"] if line != "One more want"]
                 if call.name == "acquire" and "error" not in outcome.result:
                     method = MATERIALS[args["material"]].method(args["method"])
                     turn.paid.append(method.cost)
@@ -314,6 +325,8 @@ async def _turn(session: Session, llm: LLM, beat: Beat, turn: Turn, resume: tupl
                 turn.scored = True
             if outcome.handed_to_thoreau is not None:
                 turn.addressed = outcome.handed_to_thoreau
+            if outcome.superfluous and turn.superfluity is None:
+                turn.superfluity = "first" if state.wants == 1 else "again"
             results.append(types.Part.from_function_response(name=call.name, response=outcome.result))
         session.contents.append(types.Content(role="user", parts=results))
 
@@ -373,15 +386,19 @@ async def _turn(session: Session, llm: LLM, beat: Beat, turn: Turn, resume: tupl
         alignment = rules.turn_alignment(turn.score)
         state.drift += alignment
     prompt = prompts.thoreau_turn(state, beat, session.transcript, addressed=turn.addressed, opening=turn.opening,
-                                  alignment=alignment)
+                                  alignment=alignment, superfluity=turn.superfluity)
     said: list[str] = []
     started_at = time.perf_counter()
-    async for event in _thoreau(llm, prompt, must=turn.addressed is not None or turn.opening, tone=alignment, out=said):
+    must = turn.addressed is not None or turn.opening or turn.superfluity is not None
+    async for event in _thoreau(llm, prompt, must=must, tone=alignment, out=said):
         yield event
     words = "".join(said).strip()
     yield _debug("thoreau",
-                 mode="answering the player" if turn.addressed is not None else "scene opening" if turn.opening
+                 mode="answering the player" if turn.addressed is not None
+                 else f"warning about a want ({turn.superfluity})" if turn.superfluity
+                 else "scene opening" if turn.opening
                  else f"reacting ({alignment:+d})" if alignment else "optional: may stay silent",
+                 happiness=state.happiness, wants=state.wants,
                  addressed=turn.addressed, turn_score=round(turn.score, 2) if turn.scored else None,
                  alignment=alignment, drift=state.drift, mood=rules.mood(state.drift), silent=not words,
                  ms=round((time.perf_counter() - started_at) * 1000), prompt=prompt.user)
@@ -395,8 +412,10 @@ async def _turn(session: Session, llm: LLM, beat: Beat, turn: Turn, resume: tupl
 
     if state.beat_done:
         state.phase = "between"
-        state.history.append(f"{beat.title}: {state.beat_summary or 'done'}")
-        yield _debug("beat", event="ended", beat=beat.id, summary=state.beat_summary, turns=state.beat_turns)
+        outcome = f" [{state.beat_outcome}]" if state.beat_outcome else ""
+        state.history.append(f"{beat.title}{outcome}: {state.beat_summary or 'done'}")
+        yield _debug("beat", event="ended", beat=beat.id, summary=state.beat_summary, outcome=state.beat_outcome,
+                     queued=state.queued, turns=state.beat_turns)
         yield {"type": "beat_complete", "summary": state.beat_summary, "snapshot": snapshot(state)}
     yield {"type": "ready", "snapshot": snapshot(state)}
 

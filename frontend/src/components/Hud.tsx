@@ -30,10 +30,27 @@ export default function Hud({ hud, onOpen, onDebug }: { hud: HudData; onOpen: (d
           {hud.hours_left}
           <span className="text-paper/50"> / {hud.season_hours}</span>
         </Stat>
-        <Stat label="Spirit">
-          <span aria-label={`${hud.spirit} of 10`} className="tracking-[0.15em]">
-            {'●'.repeat(hud.spirit)}
-            <span className="text-paper/30">{'●'.repeat(10 - hud.spirit)}</span>
+        <Stat label="Happiness">
+          <span className="flex items-center gap-2">
+            <span
+              role="meter"
+              aria-label="Happiness"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={hud.happiness}
+              className="relative h-1.5 w-20 overflow-hidden rounded-full bg-white/15"
+            >
+              <span
+                className="absolute inset-y-0 left-0 rounded-full transition-[width] duration-700"
+                style={{ width: `${hud.happiness}%`, background: hud.happiness >= 60 ? '#a7f3d0' : hud.happiness >= 35 ? '#fde68a' : '#fca5a5' }}
+              />
+            </span>
+            {hud.happiness}
+            {hud.wants > 0 && (
+              <span className="text-xs font-normal text-amber-200/85" title="Things you don't need. Each drains happiness every season.">
+                · {hud.wants} want{hud.wants === 1 ? '' : 's'}
+              </span>
+            )}
           </span>
         </Stat>
         <div className="flex shrink-0 gap-2">

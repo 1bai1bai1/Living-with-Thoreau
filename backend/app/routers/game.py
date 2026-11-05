@@ -17,7 +17,10 @@ from uuid import uuid4
 
 from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
+from .. import director, rules
+from ..beats import ANCHORS, BEATS
 from ..config import get_settings
 from ..gm import Action, Session, stream_act, stream_next
 from ..llm import LLM, make_llm
@@ -60,10 +63,26 @@ def _sse(sid: str, events: AsyncIterator[dict]) -> StreamingResponse:
     )
 
 
+class NewGame(BaseModel):
+    start: str | None = None  # an anchor beat id, to start a test game there
+
+
+@router.get("/beats")
+async def list_beats() -> list[dict]:
+    """The scenes a new game can start from (for the debug panel)."""
+    return [{"id": b, "title": BEATS[b].title, "when": BEATS[b].when} for b in ANCHORS]
+
+
 @router.post("/new")
-async def new_game() -> dict:
+async def new_game(body: Annotated[NewGame | None, Body()] = None) -> dict:
     sid = uuid4().hex
-    SESSIONS[sid] = Session(state=GameState(session_id=sid))
+    state = GameState(session_id=sid)
+    if body and body.start:
+        try:
+            director.fast_forward(state, body.start)
+        except rules.RuleError as error:
+            raise HTTPException(status_code=422, detail=str(error)) from error
+    SESSIONS[sid] = Session(state=state)
     LOCKS[sid] = asyncio.Lock()
     while len(SESSIONS) > MAX_SESSIONS:
         old, _ = SESSIONS.popitem(last=False)
