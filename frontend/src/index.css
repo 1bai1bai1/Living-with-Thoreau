@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background: #070b11;
+  color: #f4f1ea;
+}
+
+body {
+  @apply font-sans antialiased;
+}
+
+@layer components {
+  /* A translucent panel over the scene: widgets, drawers, the decision card. */
+  .glass {
+    @apply rounded-md border border-white/15 bg-white/[0.05] backdrop-blur-sm;
+  }
+  .label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-paper/60;
+  }
+  .btn {
+    @apply rounded border border-paper/50 bg-paper/[0.08] px-4 py-2 text-left text-sm font-medium text-paper transition-colors hover:bg-paper hover:text-night disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-paper/[0.08] disabled:hover:text-paper;
+  }
+  .btn-solid {
+    @apply rounded bg-paper px-4 py-2 text-sm font-semibold text-night transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid #f4f1ea;
+  outline-offset: 2px;
+}
+
+.cursor-blink::after {
+  content: '▍';
+  margin-left: 2px;
+  animation: blink 1s steps(2) infinite;
+  opacity: 0.7;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cursor-blink::after {
+    animation: none;
+  }
+}

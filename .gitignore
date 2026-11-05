@@ -1,0 +1,18 @@
+.env
+.DS_Store
+
+# backend
+backend/.venv/
+__pycache__/
+.pytest_cache/
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# emitted by tsc -b from the config files
+frontend/vite.config.js
+frontend/vite.config.d.ts
+frontend/tailwind.config.js
+frontend/tailwind.config.d.ts

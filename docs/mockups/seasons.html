@@ -1,0 +1,527 @@
+<title>Walden Seasons</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=La+Belle+Aurore&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,600;1,6..72,400&family=Public+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout concept: one season switch drives three complete scene mockups, stacked for comparison. */
+:root {
+  --bg: #eceeea;
+  --fg: #1b221f;
+  --muted: #58645e;
+  --line: #cbd2cd;
+  --chip: #dfe4e0;
+  --accent: #2c6a4d;
+  --f-ui: 'Public Sans', system-ui, sans-serif;
+  --f-serif: 'Newsreader', Georgia, serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111614; --fg: #e5ebe7; --muted: #9aa69f; --line: #2a3430; --chip: #1c2420; --accent: #86c9a6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111614; --fg: #e5ebe7; --muted: #9aa69f; --line: #2a3430; --chip: #1c2420; --accent: #86c9a6;
+  color-scheme: dark;
+}
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--f-ui); font-size: 15px; line-height: 1.55;
+  padding-block: 36px 64px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 1040px; margin: 0 auto; }
+h1 { font-family: var(--f-serif); font-weight: 600; font-size: clamp(30px, 5vw, 42px); line-height: 1.1; margin: 0 0 10px; text-wrap: balance; }
+.lede { color: var(--muted); max-width: 62ch; margin: 0; }
+
+/* Season switch */
+.switch-bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: var(--bg); padding-block: 14px; margin-top: 22px; border-bottom: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px;
+}
+.switch-bar .lbl { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+.seasons { display: flex; gap: 6px; flex-wrap: wrap; }
+.seasons button {
+  font: 500 14px var(--f-ui); padding: 7px 16px; border-radius: 4px; border: 1px solid var(--line);
+  background: var(--chip); color: var(--fg); cursor: pointer;
+}
+.seasons button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.dir { margin-top: 44px; }
+.dir header { display: flex; flex-direction: column; gap: 4px; margin-bottom: 14px; }
+.dir .tag { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); font-weight: 600; }
+.dir h2 { font-family: var(--f-serif); font-weight: 600; font-size: 25px; margin: 0; }
+.dir header p { margin: 0; color: var(--muted); max-width: 70ch; }
+.foot { margin-top: 48px; color: var(--muted); font-size: 13px; max-width: 70ch; }
+
+/* ---------- Season palettes (shared by all three scenes) ---------- */
+#app {
+  --sky-top: #cfe3ea; --sky-bot: #f3efd9; --sun: #fff3b0; --sun-o: .9;
+  --hill-far: #a9c7b0; --hill-mid: #86b08a; --pine: #3e6b4c; --leaf: #9ccb7e; --leaf2: #b8dc92;
+  --ground: #6fa06a; --water: #8fc2cf; --roof: #6e4b35; --trunk: #5a4333;
+  --bean: #8a6a45; --field-o: .55; --snow-o: 0; --canopy-o: .95; --bloom-o: 1;
+  --acc: #9ccb7e;
+}
+#app[data-season="summer"] {
+  --sky-top: #8cc7e8; --sky-bot: #e7f1d8; --sun: #fff6c2; --sun-o: 1;
+  --hill-far: #7fb08a; --hill-mid: #4f9566; --pine: #2f5d3f; --leaf: #3f8a47; --leaf2: #5aa04f;
+  --ground: #4e8f4a; --water: #4e98ad; --bean: #2f7a38; --field-o: 1; --bloom-o: 0; --acc: #f2c14e;
+}
+#app[data-season="autumn"] {
+  --sky-top: #e3b98c; --sky-bot: #f8e6c8; --sun: #ffd9a0; --sun-o: .95;
+  --hill-far: #cfa77a; --hill-mid: #aa804f; --pine: #3d5a3a; --leaf: #d9732b; --leaf2: #e8a33a;
+  --ground: #9a7a45; --water: #6f8ea3; --bean: #bf9f48; --field-o: .7; --bloom-o: 0; --acc: #e8873a;
+}
+#app[data-season="winter"] {
+  --sky-top: #b3c1d3; --sky-bot: #eef1f5; --sun: #ffffff; --sun-o: .55;
+  --hill-far: #d9e0e8; --hill-mid: #c3ccd8; --pine: #27473a; --leaf: #cfd6de; --leaf2: #dfe5ea;
+  --ground: #f2f6fa; --water: #d6e4ef; --bean: #ffffff; --field-o: 0; --snow-o: 1; --canopy-o: 0; --bloom-o: 0; --acc: #9fc3e0;
+}
+
+/* shared game-UI pieces */
+.free { display: flex; gap: 8px; margin-top: 14px; }
+.free input { flex: 1; min-width: 0; font: inherit; }
+.free button { font: 600 14px var(--f-ui); cursor: pointer; }
+.note { font-size: 12px; opacity: .7; margin-top: 6px; }
+
+/* ---------- A. Cut-paper landscape ---------- */
+.cardA { background: #1c231f; color: #eef0e8; border-radius: 6px; overflow: hidden; }
+.artA { position: relative; height: clamp(200px, 30vw, 300px); }
+.artA svg { display: block; width: 100%; height: 100%; }
+.hud { position: absolute; left: 12px; top: 12px; right: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.hud span { background: rgba(18, 24, 20, .66); color: #f1f3ea; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.hud .where { background: rgba(240, 242, 232, .85); color: #1c231f; }
+.panelA { padding: 20px max(16px, 3vw) 22px; display: grid; gap: 14px; }
+.panelA .nar { font-family: var(--f-serif); font-size: 18px; line-height: 1.55; margin: 0; max-width: 68ch; }
+.voice { margin: 0; padding-left: 14px; border-left: 3px solid var(--acc); max-width: 68ch; }
+.voice b { display: block; font: 600 11px var(--f-ui); letter-spacing: .14em; text-transform: uppercase; color: var(--acc); margin-bottom: 2px; }
+.voice span { font-family: var(--f-serif); font-style: italic; font-size: 17px; }
+.choicesA { display: flex; flex-wrap: wrap; gap: 8px; }
+.choicesA button {
+  font: 500 14px var(--f-ui); color: #eef0e8; background: transparent; border: 1px solid var(--acc);
+  padding: 7px 14px; border-radius: 99px; cursor: pointer; text-align: left;
+}
+.choicesA button:hover, .choicesA button[aria-pressed="true"] { background: var(--acc); color: #17201b; }
+.panelA .free input { background: #2a342e; border: 1px solid #44524a; color: #eef0e8; padding: 8px 12px; border-radius: 4px; }
+.panelA .free button { background: var(--acc); color: #17201b; border: 0; padding: 8px 16px; border-radius: 4px; }
+.panelA .react { min-height: 1.5em; font-family: var(--f-serif); font-style: italic; color: var(--acc); margin: 0; max-width: 68ch; }
+.smoke circle { fill: #fff; animation: puff 5s ease-out infinite; }
+.smoke circle:nth-child(2) { animation-delay: 1.6s; }
+.smoke circle:nth-child(3) { animation-delay: 3.2s; }
+@keyframes puff { 0% { opacity: 0; transform: translateY(6px); } 30% { opacity: .5; } 100% { opacity: 0; transform: translateY(-26px); } }
+
+/* ---------- B. Pencil journal ---------- */
+.cardB {
+  --paper: #e8e7e1; --graphite: #30343a; --note: #43546f;
+  display: grid; grid-template-columns: 1fr 1fr; background: var(--paper); color: var(--graphite);
+  border-radius: 3px; position: relative; box-shadow: 0 1px 0 #fff inset, 0 10px 30px -12px rgba(0, 0, 0, .45);
+}
+.cardB::before { content: ""; position: absolute; inset: 0 calc(50% - 22px); background: linear-gradient(90deg, transparent, rgba(40, 40, 40, .16) 48%, rgba(40, 40, 40, .22) 50%, rgba(40, 40, 40, .16) 52%, transparent); pointer-events: none; }
+.pageL { padding: 22px 22px 18px max(16px, 26px); display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.sketch { border: 1px solid rgba(48, 52, 58, .35); height: clamp(210px, 28vw, 300px); background: #efeee9; }
+.sketch svg { display: block; width: 100%; height: 100%; }
+.caption { font-family: 'La Belle Aurore', cursive; font-size: 19px; color: var(--note); transform: rotate(-1deg); margin: 2px 0 0; }
+.ledger { margin-top: auto; font-family: 'IM Fell English', Georgia, serif; font-size: 15px; }
+.ledger h4 { margin: 0 0 4px; font: italic 400 15px 'IM Fell English', serif; border-bottom: 1px solid var(--graphite); padding-bottom: 2px; }
+.ledger dl { margin: 0; display: grid; gap: 1px; }
+.ledger div { display: flex; align-items: baseline; gap: 6px; }
+.ledger dt { white-space: nowrap; }
+.ledger .dots { flex: 1; border-bottom: 1px dotted rgba(48, 52, 58, .55); transform: translateY(-3px); }
+.ledger dd { margin: 0; font-variant-numeric: tabular-nums; }
+.pageR { padding: 22px max(16px, 28px) 20px 26px; font-family: 'IM Fell English', Georgia, serif; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.folio { display: flex; justify-content: space-between; gap: 8px; font-style: italic; font-size: 14px; border-bottom: 1px solid rgba(48, 52, 58, .4); padding-bottom: 4px; }
+.pageR .nar { font-size: 19px; line-height: 1.5; margin: 0; }
+.margin { font-family: 'La Belle Aurore', cursive; font-size: 20px; line-height: 1.35; color: var(--note); margin: 0; padding: 2px 0 2px 14px; border-left: 1px solid rgba(67, 84, 111, .5); transform: rotate(-.6deg); }
+.margin small { display: block; font: italic 12px 'IM Fell English', serif; letter-spacing: .06em; color: var(--graphite); opacity: .7; }
+.choicesB { display: grid; gap: 2px; }
+.choicesB button {
+  font: 400 17px/1.35 'IM Fell English', Georgia, serif; text-align: left; color: var(--graphite); background: none; border: 0;
+  padding: 4px 6px; cursor: pointer; display: flex; gap: 10px; border-radius: 2px;
+}
+.choicesB button::before { content: "\2610"; }
+.choicesB button[aria-pressed="true"]::before { content: "\2612"; }
+.choicesB button:hover { background: rgba(48, 52, 58, .08); }
+.cardB .free { align-items: baseline; margin-top: 4px; }
+.cardB .free label { font-style: italic; white-space: nowrap; }
+.cardB .free input { background: transparent; border: 0; border-bottom: 1px solid var(--graphite); font-family: 'La Belle Aurore', cursive; font-size: 18px; color: var(--note); padding: 2px 4px; border-radius: 0; }
+.cardB .free button { background: none; border: 0; font-family: 'IM Fell English', serif; font-style: italic; font-size: 16px; color: var(--graphite); text-decoration: underline; }
+.cardB .react { min-height: 1.4em; font-family: 'La Belle Aurore', cursive; font-size: 20px; line-height: 1.35; color: var(--note); margin: 0; }
+
+/* ---------- C. Living atmosphere ---------- */
+.cardC { position: relative; min-height: 620px; border-radius: 6px; overflow: hidden; display: flex; align-items: flex-end; color: #f4f1ea; background: #1b2434; }
+.cardC canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.cardC::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(7, 11, 17, .92) 0%, rgba(7, 11, 17, .74) 42%, rgba(7, 11, 17, 0) 74%); pointer-events: none; }
+.cBody { position: relative; z-index: 2; padding: 28px max(16px, 3.4vw) 26px; width: 100%; max-width: 760px; display: grid; gap: 14px; }
+.cMeta { font: 500 12px var(--f-ui); letter-spacing: .14em; text-transform: uppercase; opacity: .85; display: flex; flex-wrap: wrap; gap: 4px 16px; font-variant-numeric: tabular-nums; }
+.cBody .nar { font-family: var(--f-serif); font-size: clamp(19px, 2.4vw, 24px); line-height: 1.5; margin: 0; font-weight: 400; }
+.cBody .voice { border-left-color: rgba(244, 241, 234, .55); }
+.cBody .voice b { color: rgba(244, 241, 234, .75); }
+.choicesC { display: flex; flex-wrap: wrap; gap: 8px; }
+.choicesC button { font: 500 14px var(--f-ui); color: #f4f1ea; background: rgba(244, 241, 234, .08); border: 1px solid rgba(244, 241, 234, .5); padding: 8px 15px; border-radius: 4px; cursor: pointer; text-align: left; }
+.choicesC button:hover, .choicesC button[aria-pressed="true"] { background: #f4f1ea; color: #121722; }
+.cBody .free input { background: transparent; border: 0; border-bottom: 1px solid rgba(244, 241, 234, .55); color: #f4f1ea; padding: 8px 2px; }
+.cBody .free input::placeholder { color: rgba(244, 241, 234, .55); }
+.cBody .free button { background: none; border: 1px solid rgba(244, 241, 234, .5); color: #f4f1ea; padding: 8px 16px; border-radius: 4px; }
+.cBody .react { min-height: 1.5em; font-family: var(--f-serif); font-style: italic; margin: 0; opacity: .95; }
+
+@media (max-width: 720px) {
+  .cardB { grid-template-columns: 1fr; }
+  .cardB::before { display: none; }
+  .pageR { border-top: 1px solid rgba(48, 52, 58, .3); }
+  .free { flex-wrap: wrap; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .smoke circle { animation: none; opacity: .4; }
+}
+</style>
+
+<div class="wrap" id="app" data-season="spring">
+  <h1>Walden Seasons</h1>
+  <p class="lede">Three ways the seasonal backdrop could look. The same scene and the same text appear in each, so you can compare the look and how Thoreau's inner voice is presented. Pick a season to change all three. Buttons and the text field work as a preview.</p>
+
+  <div class="switch-bar">
+    <span class="lbl">Season</span>
+    <div class="seasons" role="group" aria-label="Season" id="seasonBtns"></div>
+  </div>
+
+  <section class="dir">
+    <header>
+      <span class="tag">Direction A</span>
+      <h2>Cut-paper landscape</h2>
+      <p>Flat, layered shapes. Each season swaps the palette, the foliage and the snow, and the same drawing serves all ten seasons of the game. The cheapest to build and the easiest to extend with more props (a finished chimney, a bigger woodpile).</p>
+    </header>
+    <div class="cardA">
+      <div class="artA">
+        <div id="svgA" style="height:100%"></div>
+        <div class="hud" id="aHud"></div>
+      </div>
+      <div class="panelA">
+        <p class="nar" id="aNar"></p>
+        <p class="voice"><b>Thoreau</b><span id="aVoice"></span></p>
+        <div class="choicesA" id="aChoices"></div>
+        <form class="free" id="aFree"><input id="aIn" type="text" placeholder="Or do something else..." aria-label="Free text action"><button type="submit">Do it</button></form>
+        <p class="react" id="aReact" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="dir">
+    <header>
+      <span class="tag">Direction B</span>
+      <h2>Pencil journal</h2>
+      <p>Graphite drawings with a thin watercolor wash for the season, a nod to the Thoreau family pencil business. The narrator is printed on the page. Thoreau's voice is handwritten in the margin, so you can tell the two apart at a glance. A small ledger doubles as the shop and house-cost widget.</p>
+    </header>
+    <div class="cardB">
+      <div class="pageL">
+        <div class="sketch"><div id="svgB" style="height:100%"></div></div>
+        <p class="caption" id="bCap"></p>
+        <div class="ledger"><h4>Account of the season</h4><dl id="bLedger"></dl></div>
+      </div>
+      <div class="pageR">
+        <div class="folio"><span id="bFolioL"></span><span id="bFolioR"></span></div>
+        <p class="nar" id="bNar"></p>
+        <p class="margin" id="bVoice"></p>
+        <div class="choicesB" id="bChoices"></div>
+        <form class="free" id="bFree"><label for="bIn">Or write:</label><input id="bIn" type="text" aria-label="Free text action"><button type="submit">enter</button></form>
+        <p class="react" id="bReact" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="dir">
+    <header>
+      <span class="tag">Direction C</span>
+      <h2>Living atmosphere</h2>
+      <p>A painted skyline with a lit cabin window and animated weather: petals in spring, fireflies in summer, falling leaves in autumn, snow in winter. Text sits right on the scene. The most mood for the least art, though it is the least specific to the story.</p>
+    </header>
+    <div class="cardC">
+      <canvas id="cCanvas" aria-hidden="true"></canvas>
+      <div class="cBody">
+        <div class="cMeta" id="cMeta"></div>
+        <p class="nar" id="cNar"></p>
+        <p class="voice"><b>Thoreau</b><span id="cVoice"></span></p>
+        <div class="choicesC" id="cChoices"></div>
+        <form class="free" id="cFree"><input id="cIn" type="text" placeholder="Or do something else..." aria-label="Free text action"><button type="submit">Do it</button></form>
+        <p class="react" id="cReact" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot">Everything here is drawn in code as a placeholder. The final art could be hand-drawn, generated, or built up from the same layered pieces. The scene text is sample copy written for this mockup.</p>
+</div>
+
+<script>
+const ORDER = ['spring', 'summer', 'autumn', 'winter'];
+const DATA = {
+  spring: {
+    label: 'Spring 1845', place: 'Walden Pond, April', scene: 2, cap: 'The frame, before the raising.',
+    stats: [['Dollars', '$9.75'], ['Hours today', '6 of 10'], ['House', '35%'], ['Nails', '0']],
+    nar: "The pines are cut and the frame is notched, but nothing stands yet. Collins's shanty lies in gray boards beside the cellar hole you dug. The village is two miles off, and nails cost money.",
+    voice: "A man may build a house for what he earns in a month, or he may spend ten years paying for one. Mind which you are doing, friend.",
+    choices: [
+      ['Pull nails from the shanty boards', "Slow work and sore thumbs, but every nail you pull is an hour you did not sell. I approve."],
+      ['Walk to the village for new nails ($0.65)', "Fair enough. The nails are cheap. I only ask that you do not linger at the store for the gossip."],
+      ['Ask the neighbors to start the raising early', "Company is no sin, but you have not yet earned the favor. Think what you can offer in return."]
+    ]
+  },
+  summer: {
+    label: 'Summer 1845', place: 'The bean-field, July', scene: 4, cap: 'Bean-rows, seven miles in all.',
+    stats: [['Dollars', '$6.10'], ['Hours today', '4 of 10'], ['Beans', '2.5 acres'], ['Spirit', 'restless']],
+    nar: "Sunrise on the bean-field. Seven miles of rows lie ahead, and the woodchucks have already found them. A wagon rattles along the Concord road.",
+    voice: "Why should I hoe all morning for a few dollars? Yet I did not plant beans only for the beans. I planted them to learn what the soil has to say.",
+    choices: [
+      ['Hoe until noon', "Good. The beans will not weed themselves, and the work has a way of turning into thought."],
+      ['Bathe in the pond, then sit in the doorway', "Ah. This is what the cabin is for. But the woodchucks, friend, the woodchucks."],
+      ['Walk to the village for news', "The village is a great news-room. Do not stay long; it has a way of keeping men."]
+    ]
+  },
+  autumn: {
+    label: 'Autumn 1845', place: 'The cabin, November', scene: 6, cap: 'Chestnuts down; chimney half laid.',
+    stats: [['Dollars', '$11.40'], ['Hours today', '5 of 10'], ['Chimney', '60%'], ['Fuel', '1 cord']],
+    nar: "The chestnuts are down and the first frost has come. The chimney stands half laid, and a cold wind finds the gaps in the walls. A pile of old bricks waits in the yard.",
+    voice: "A fire is the soul of a house. I will have mine honest, built of brick I carried myself.",
+    choices: [
+      ['Lay bricks until the chimney draws', "Laid by your own hand, at four dollars the thousand. Splendid."],
+      ['Buy a small stove in the village', "A stove is a convenience, I grant. But you will miss seeing a face in the fire."],
+      ['Gather chestnuts and fallen wood', "Prudent, and a pleasant day besides. Only do not let the chimney wait for the snow."]
+    ]
+  },
+  winter: {
+    label: 'Winter 1846', place: 'Walden Pond, January', scene: 8, cap: 'Pond ice, booming at night.',
+    stats: [['Dollars', '$3.85'], ['Hours today', '7 of 10'], ['Fuel', '0.5 cord'], ['Warmth', '62%']],
+    nar: "The pond booms in the night as the ice settles. Snow has drifted against the door, and the woodpile is lower than you would like. Across the ice, a line of men with saws cut blocks for Charleston.",
+    voice: "They harvest the pond, and I only look at it. Which of us has taken the greater crop?",
+    choices: [
+      ['Haul pitch-pine across the ice', "Warmth earned twice, once in the cutting and once in the burning. Good."],
+      ["Walk to Emerson's for supper", "A hot dinner is no crime. Though I notice you choose it often."],
+      ['Sit by the fire and write', "The pages will keep you warmer than you think, if the wood holds out."]
+    ]
+  }
+};
+
+/* ---------- shared geometry ---------- */
+const FAR = "M0 190 C120 150 220 170 330 160 S560 120 680 150 S860 140 960 160";
+const MID = "M0 215 C140 185 260 205 380 195 S640 170 760 190 S900 195 960 185";
+const GRD = "M0 270 C160 255 300 285 480 275 S800 250 960 268";
+const POND = "M110 240 C160 222 300 216 400 224 C470 230 520 244 470 258 C380 276 190 278 120 262 C90 254 92 246 110 240Z";
+const closed = p => p + " L960 320 L0 320Z";
+const PINES = [[40, 238, 1.25], [80, 246, 1], [150, 228, .8], [560, 214, .7], [680, 206, .75], [722, 213, .65], [820, 200, .9], [880, 224, 1.2], [918, 234, 1]];
+const OAKS = [[205, 209, 1], [266, 205, .9], [520, 203, .9], [765, 197, 1.1], [112, 236, 1.3], [935, 200, .8]];
+const TREES = [...PINES.map(p => ['p', ...p]), ...OAKS.map(o => ['o', ...o])].sort((a, b) => a[2] - b[2]);
+
+/* ---------- Direction A: flat fills ---------- */
+const S = v => `style="${v}"`;
+function pineFill(x, y, s) {
+  return `<g transform="translate(${x} ${y}) scale(${s})"><rect x="-2" y="-4" width="4" height="9" ${S('fill:var(--trunk)')}/>
+  <polygon points="0,-50 -13,-24 13,-24" ${S('fill:var(--pine)')}/><polygon points="0,-38 -16,-10 16,-10" ${S('fill:var(--pine)')}/><polygon points="0,-24 -19,4 19,4" ${S('fill:var(--pine)')}/>
+  <g fill="#fff" ${S('opacity:var(--snow-o)')}><polygon points="0,-50 -5,-39 5,-39"/><polygon points="0,-38 -7,-27 7,-27"/><polygon points="0,-24 -8,-14 8,-14"/></g></g>`;
+}
+function oakFill(x, y, s) {
+  return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 4 L0 -30 M0 -18 L-13 -34 M0 -22 L12 -38" fill="none" stroke-linecap="round" ${S('stroke:var(--trunk);stroke-width:3')}/>
+  <g ${S('opacity:var(--canopy-o)')}><circle cx="0" cy="-38" r="17" ${S('fill:var(--leaf)')}/><circle cx="-14" cy="-28" r="13" ${S('fill:var(--leaf2)')}/><circle cx="14" cy="-30" r="13" ${S('fill:var(--leaf)')}/></g>
+  <g fill="#fff" ${S('opacity:var(--bloom-o)')}><circle cx="-6" cy="-44" r="2.6"/><circle cx="9" cy="-36" r="2.4"/><circle cx="-18" cy="-28" r="2.2"/><circle cx="16" cy="-26" r="2.2"/></g></g>`;
+}
+function sceneA() {
+  const rows = Array.from({ length: 9 }, (_, i) => `<line x1="${690 + (i - 4) * 9}" y1="266" x2="${660 + (i - 4) * 78}" y2="320" ${S('stroke:var(--bean);stroke-width:3.2;opacity:var(--field-o)')}/>`).join('');
+  return `<svg viewBox="0 0 960 320" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Walden Pond and the cabin as flat layered shapes">
+  <defs><linearGradient id="skyA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" ${S('stop-color:var(--sky-top)')}/><stop offset="1" ${S('stop-color:var(--sky-bot)')}/></linearGradient></defs>
+  <rect width="960" height="320" fill="url(#skyA)"/>
+  <circle cx="800" cy="78" r="30" ${S('fill:var(--sun);opacity:var(--sun-o)')}/>
+  <path d="${closed(FAR)}" ${S('fill:var(--hill-far)')}/>
+  <path d="${closed(MID)}" ${S('fill:var(--hill-mid)')}/>
+  <path d="${POND}" ${S('fill:var(--water)')}/>
+  <g stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".4"><line x1="190" y1="240" x2="250" y2="240"/><line x1="300" y1="252" x2="380" y2="252"/><line x1="240" y1="262" x2="290" y2="262"/></g>
+  <g stroke="#fff" fill="none" stroke-width="1.5" ${S('opacity:var(--snow-o)')}><path d="M180 236 L230 250 L215 262 M330 232 L360 256 L420 250"/></g>
+  <ellipse cx="615" cy="238" rx="50" ry="8" ${S('fill:var(--ground)')}/>
+  <g transform="translate(590 184)">
+    <rect x="0" y="22" width="46" height="30" fill="#7a5638"/><rect x="18" y="34" width="10" height="18" fill="#3a281a"/><rect x="4" y="30" width="8" height="8" fill="#f5d98a"/>
+    <rect x="40" y="2" width="7" height="18" fill="#9a6a52"/>
+    <polygon points="-6,24 23,0 52,24" ${S('fill:var(--roof)')}/>
+    <polygon points="-6,24 23,0 52,24 46,24 23,6 0,24" fill="#fff" ${S('opacity:var(--snow-o)')}/>
+    <g class="smoke"><circle cx="43" cy="-2" r="4"/><circle cx="46" cy="-12" r="5"/><circle cx="50" cy="-24" r="6"/></g>
+  </g>
+  ${TREES.map(t => t[0] === 'p' ? pineFill(t[1], t[2], t[3]) : oakFill(t[1], t[2], t[3])).join('')}
+  <path d="${closed(GRD)}" ${S('fill:var(--ground)')}/>
+  ${rows}
+  </svg>`;
+}
+
+/* ---------- Direction B: graphite + wash ---------- */
+function pineInkWash(x, y, s) { return `<polygon transform="translate(${x} ${y}) scale(${s})" points="0,-50 -19,4 19,4" ${S('fill:var(--pine);opacity:.5')}/>`; }
+function oakWash(x, y, s) { return `<g transform="translate(${x} ${y}) scale(${s})" ${S('opacity:calc(var(--canopy-o) * .6)')}><circle cx="0" cy="-38" r="17" ${S('fill:var(--leaf)')}/><circle cx="-14" cy="-28" r="13" ${S('fill:var(--leaf2)')}/><circle cx="14" cy="-30" r="13" ${S('fill:var(--leaf)')}/></g>`; }
+function pineInk(x, y, s) { return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 5 L0 -3 M0 -50 L-13 -24 L-6 -24 L-16 -10 L-8 -10 L-19 4 L19 4 L8 -10 L16 -10 L6 -24 L13 -24 Z"/><path d="M-5 -14 L-9 -2 M0 -20 L-4 -6 M5 -14 L2 -2 M-6 -30 L-9 -22"/></g>`; }
+function oakInk(x, y, s) { return `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 4 L0 -30 M0 -18 L-13 -34 M0 -22 L12 -38 M-2 -8 L-8 -16"/><g ${S('opacity:var(--canopy-o)')}><circle cx="0" cy="-38" r="17" stroke-dasharray="46 5 22 6"/><circle cx="-14" cy="-28" r="13" stroke-dasharray="30 6 20 4"/><circle cx="14" cy="-30" r="13" stroke-dasharray="34 5 18 6"/></g></g>`; }
+function sceneB() {
+  const snow = [[60, 292], [260, 288], [430, 296], [640, 284], [820, 290]].map(([x, y]) => `<path d="M${x} ${y} q8 -7 18 0 q8 -5 16 1" ${S('opacity:var(--snow-o)')}/>`).join('');
+  const hatch = Array.from({ length: 12 }, (_, i) => `<line x1="${30 + i * 78}" y1="300" x2="${44 + i * 78}" y2="286"/>`).join('');
+  return `<svg viewBox="0 0 960 320" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Pencil sketch of Walden Pond and the cabin with a seasonal watercolor wash">
+  <defs><filter id="rough" x="-2%" y="-2%" width="104%" height="104%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="2" seed="4" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="2.6"/></filter></defs>
+  <g transform="translate(3 -2)" style="mix-blend-mode:multiply">
+    <rect width="960" height="200" ${S('fill:var(--sky-top);opacity:.5')}/>
+    <path d="${closed(FAR)}" ${S('fill:var(--hill-far);opacity:.5')}/>
+    <path d="${closed(MID)}" ${S('fill:var(--hill-mid);opacity:.45')}/>
+    <path d="${POND}" ${S('fill:var(--water);opacity:.7')}/>
+    <path d="${closed(GRD)}" ${S('fill:var(--ground);opacity:.5')}/>
+    ${TREES.map(t => t[0] === 'p' ? pineInkWash(t[1], t[2], t[3]) : oakWash(t[1], t[2], t[3])).join('')}
+    <polygon points="584,208 613,184 642,208" ${S('fill:var(--roof);opacity:.6')}/>
+  </g>
+  <g filter="url(#rough)" fill="none" stroke="#30343a" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="${FAR}"/><path d="${MID}"/><path d="${GRD}"/><path d="${POND}"/>
+    <g opacity=".55"><line x1="150" y1="238" x2="260" y2="238"/><line x1="290" y1="250" x2="400" y2="250"/><line x1="200" y1="262" x2="300" y2="262"/><line x1="360" y1="236" x2="430" y2="236"/></g>
+    <g opacity=".4">${hatch}</g>
+    ${TREES.map(t => t[0] === 'p' ? pineInk(t[1], t[2], t[3]) : oakInk(t[1], t[2], t[3])).join('')}
+    <g transform="translate(590 184)"><rect x="0" y="22" width="46" height="30"/><path d="M-6 24 L23 0 L52 24 Z"/><path d="M40 12 L40 2 L47 2 L47 18"/><rect x="18" y="34" width="10" height="18"/><rect x="4" y="30" width="8" height="8"/><path d="M43 -3 q7 -6 0 -12 q-7 -6 2 -13" opacity=".7"/></g>
+    ${snow}
+  </g></svg>`;
+}
+
+/* ---------- Direction C: canvas atmosphere ---------- */
+function makeAtmos(canvas) {
+  const ctx = canvas.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const PAL = {
+    spring: { sky: ['#6f9bb5', '#f3d7c3'], glow: '#fff0cf', hills: ['#9fb7b0', '#7f9f92', '#5f8574'], fg: '#223629', water: '#c7d6dc', lamp: '#ffe2a0' },
+    summer: { sky: ['#33608f', '#f4c27a'], glow: '#ffe0a0', hills: ['#6c8f86', '#4b7468', '#35594f'], fg: '#172a23', water: '#d9b88a', lamp: '#ffd27a' },
+    autumn: { sky: ['#4a3b5c', '#f09a58'], glow: '#ffc07a', hills: ['#8a6070', '#6d4a57', '#4d3441'], fg: '#261b20', water: '#c98660', lamp: '#ffc86a' },
+    winter: { sky: ['#1f2f4d', '#9db4d0'], glow: '#dfe9f5', hills: ['#8fa3bf', '#6d84a3', '#4f6685'], fg: '#121d30', water: '#a9bbd2', lamp: '#ffd98a' }
+  };
+  let w = 0, h = 0, dpr = 1, bg = null, parts = [], season = 'spring', raf = 0, visible = true;
+
+  function ridge(b, base, amp, seed) {
+    b.beginPath(); b.moveTo(0, h);
+    for (let x = 0; x <= w + 6; x += 6) b.lineTo(x, base + amp * (Math.sin(x * .0042 + seed) + .5 * Math.sin(x * .011 + seed * 2) + .25 * Math.sin(x * .027 + seed * 3)));
+    b.lineTo(w, h); b.closePath(); b.fill();
+  }
+  function pine(b, x, y, H) {
+    for (let i = 0; i < 4; i++) {
+      const apex = y - H * (1 - .2 * i), base = apex + H * .38, half = H * (.2 + .06 * i);
+      b.beginPath(); b.moveTo(x, apex); b.lineTo(x - half, base); b.lineTo(x + half, base); b.closePath(); b.fill();
+    }
+    b.fillRect(x - H * .025, y - H * .04, H * .05, H * .08);
+  }
+  function build() {
+    bg = document.createElement('canvas'); bg.width = Math.round(w * dpr); bg.height = Math.round(h * dpr);
+    const b = bg.getContext('2d'); b.scale(dpr, dpr); const p = PAL[season];
+    let g = b.createLinearGradient(0, 0, 0, h * .62); g.addColorStop(0, p.sky[0]); g.addColorStop(1, p.sky[1]); b.fillStyle = g; b.fillRect(0, 0, w, h);
+    const gx = w * .74, gy = h * .26;
+    g = b.createRadialGradient(gx, gy, 0, gx, gy, h * .36); g.addColorStop(0, p.glow + 'cc'); g.addColorStop(1, p.glow + '00'); b.fillStyle = g; b.fillRect(0, 0, w, h);
+    b.fillStyle = p.hills[0]; ridge(b, h * .34, h * .035, 1.3);
+    b.fillStyle = p.hills[1]; ridge(b, h * .40, h * .04, 3.1);
+    b.fillStyle = p.hills[2]; ridge(b, h * .46, h * .035, 5.2);
+    const wy = h * .52; g = b.createLinearGradient(0, wy, 0, wy + h * .07); g.addColorStop(0, p.water); g.addColorStop(1, p.hills[2]);
+    b.fillStyle = g; b.beginPath(); b.ellipse(w * .36, wy + h * .03, w * .3, h * .04, 0, 0, Math.PI * 2); b.fill();
+    b.fillStyle = p.fg; ridge(b, h * .585, h * .012, 7.7);
+    [[.04, .64, .3], [.1, .62, .22], [.16, .6, .15], [.93, .64, .32], [.87, .62, .22], [.79, .59, .14]].forEach(([fx, fy, fh]) => pine(b, w * fx, h * fy, h * fh));
+    const k = h / 600, cx = w * .66, cy = h * .505;
+    b.fillStyle = p.fg; b.fillRect(cx, cy - 26 * k, 56 * k, 26 * k);
+    b.beginPath(); b.moveTo(cx - 6 * k, cy - 26 * k); b.lineTo(cx + 28 * k, cy - 50 * k); b.lineTo(cx + 62 * k, cy - 26 * k); b.closePath(); b.fill();
+    b.fillRect(cx + 44 * k, cy - 56 * k, 8 * k, 20 * k);
+    const lx = cx + 14 * k, ly = cy - 16 * k;
+    g = b.createRadialGradient(lx, ly, 0, lx, ly, 38 * k); g.addColorStop(0, p.lamp + 'dd'); g.addColorStop(1, p.lamp + '00'); b.fillStyle = g; b.fillRect(lx - 40 * k, ly - 40 * k, 80 * k, 80 * k);
+    b.fillStyle = p.lamp; b.fillRect(lx - 5 * k, ly - 5 * k, 10 * k, 10 * k);
+  }
+  const rnd = (a, c) => a + Math.random() * (c - a);
+  const LEAF = ['#e07b2f', '#c0392b', '#e8a33a', '#a8541f'];
+  function mk() {
+    const base = { x: rnd(0, w), y: rnd(0, h * .8), ph: rnd(0, 6.28), v: rnd(0, 1), r: rnd(0, 6.28), vr: rnd(-.03, .03) };
+    if (season === 'spring') return { ...base, s: rnd(3, 5.5) };
+    if (season === 'summer') return { ...base, y: rnd(h * .34, h * .62), sp: rnd(.6, 1.4) };
+    if (season === 'autumn') return { ...base, s: rnd(4, 7), c: LEAF[(Math.random() * 4) | 0] };
+    return { ...base, s: rnd(1, 3.2) };
+  }
+  function spawn() { parts = Array.from({ length: { spring: 48, summer: 34, autumn: 46, winter: 130 }[season] }, mk); }
+  function draw(t) {
+    ctx.clearRect(0, 0, w, h); if (bg) ctx.drawImage(bg, 0, 0, w, h);
+    for (const p of parts) {
+      if (season === 'summer') {
+        p.x += Math.cos(t * .0004 + p.ph) * .35; p.y += Math.sin(t * .0005 + p.ph * 1.7) * .3;
+        p.x = (p.x + w) % w; p.y = Math.min(h * .62, Math.max(h * .34, p.y));
+        const a = .3 + .7 * Math.max(0, Math.sin(t * .002 * p.sp + p.ph));
+        const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, 11); g.addColorStop(0, `rgba(235,255,150,${a})`); g.addColorStop(1, 'rgba(235,255,150,0)');
+        ctx.fillStyle = g; ctx.fillRect(p.x - 11, p.y - 11, 22, 22);
+        continue;
+      }
+      if (season === 'spring') { p.x += Math.sin(t * .001 + p.ph) * .4 + .25; p.y += .5 + p.v * .5; p.r += p.vr; }
+      else if (season === 'autumn') { p.x += Math.sin(t * .0011 + p.ph) * .7 + .2; p.y += .7 + p.v * .6; p.r += p.vr; }
+      else { p.x += Math.sin(t * .0008 + p.ph) * .3 + .15 * p.v; p.y += .5 + p.v * .8; }
+      if (p.y > h + 10) { p.y = -10; p.x = rnd(0, w); }
+      if (p.x > w + 10) p.x = -10; else if (p.x < -10) p.x = w + 10;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      if (season === 'spring') { ctx.fillStyle = 'rgba(248,214,224,.88)'; ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.s * .55, 0, 0, 6.29); ctx.fill(); }
+      else if (season === 'autumn') { ctx.fillStyle = p.c; ctx.beginPath(); ctx.ellipse(0, 0, p.s, p.s * .5, 0, 0, 6.29); ctx.fill(); }
+      else { ctx.fillStyle = `rgba(255,255,255,${.5 + p.v * .4})`; ctx.beginPath(); ctx.arc(0, 0, p.s, 0, 6.29); ctx.fill(); }
+      ctx.restore();
+    }
+  }
+  function loop(t) { raf = 0; if (visible && !document.hidden) draw(t); raf = requestAnimationFrame(loop); }
+  function resize() {
+    const r = canvas.getBoundingClientRect(); dpr = Math.min(window.devicePixelRatio || 1, 2);
+    w = r.width; h = r.height; canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    build(); spawn(); if (reduce) draw(0);
+  }
+  new ResizeObserver(resize).observe(canvas);
+  new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(canvas);
+  if (!reduce) raf = requestAnimationFrame(loop);
+  return { set(s) { season = s; if (w) { build(); spawn(); if (reduce) draw(0); } } };
+}
+
+/* ---------- wiring ---------- */
+const $ = id => document.getElementById(id);
+const app = $('app');
+let current = 'spring';
+const atmos = makeAtmos($('cCanvas'));
+$('svgA').innerHTML = sceneA();
+$('svgB').innerHTML = sceneB();
+
+function choices(box, reactEl, d, prefix) {
+  box.innerHTML = '';
+  d.choices.forEach(([label, reply]) => {
+    const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = label; btn.setAttribute('aria-pressed', 'false');
+    btn.addEventListener('click', () => {
+      box.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+      reactEl.textContent = prefix + reply;
+    });
+    box.appendChild(btn);
+  });
+}
+function wireFree(form, input, reactEl, prefix) {
+  form.addEventListener('submit', e => {
+    e.preventDefault(); const v = input.value.trim(); if (!v) return;
+    reactEl.textContent = `${prefix}You wrote "${v}". In the game, Thoreau reads this and answers in his own words.`;
+    input.value = '';
+  });
+}
+function render() {
+  const d = DATA[current]; app.dataset.season = current;
+  document.querySelectorAll('#seasonBtns button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.s === current)));
+  // A
+  $('aHud').innerHTML = `<span class="where">${d.label} · ${d.place}</span>` + d.stats.map(([k, v]) => `<span>${k} ${v}</span>`).join('');
+  $('aNar').textContent = d.nar; $('aVoice').textContent = d.voice; $('aReact').textContent = '';
+  choices($('aChoices'), $('aReact'), d, 'Thoreau: ');
+  // B
+  $('bFolioL').textContent = `${d.label}`; $('bFolioR').textContent = `Scene ${d.scene} of 20`;
+  $('bCap').textContent = d.cap;
+  $('bLedger').innerHTML = d.stats.map(([k, v]) => `<div><dt>${k}</dt><span class="dots"></span><dd>${v}</dd></div>`).join('');
+  $('bNar').textContent = d.nar;
+  $('bVoice').innerHTML = `${d.voice}<small>H. D. T., in the margin</small>`; $('bReact').textContent = '';
+  choices($('bChoices'), $('bReact'), d, '');
+  // C
+  $('cMeta').innerHTML = `<span>${d.label}</span><span>Scene ${d.scene} of 20</span>` + d.stats.map(([k, v]) => `<span>${k} ${v}</span>`).join('');
+  $('cNar').textContent = d.nar; $('cVoice').textContent = d.voice; $('cReact').textContent = '';
+  choices($('cChoices'), $('cReact'), d, 'Thoreau: ');
+  atmos.set(current);
+}
+const sb = $('seasonBtns');
+ORDER.forEach(s => {
+  const b = document.createElement('button'); b.type = 'button'; b.dataset.s = s; b.textContent = s[0].toUpperCase() + s.slice(1);
+  b.addEventListener('click', () => { current = s; render(); });
+  sb.appendChild(b);
+});
+wireFree($('aFree'), $('aIn'), $('aReact'), 'Thoreau: ');
+wireFree($('bFree'), $('bIn'), $('bReact'), '');
+wireFree($('cFree'), $('cIn'), $('cReact'), 'Thoreau: ');
+render();
+</script>
