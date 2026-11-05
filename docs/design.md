@@ -55,6 +55,24 @@ The **State** tab shows the raw snapshot. The server sends these as `debug` SSE 
 - **Alignment** comes from what the tools did. Materials carry value tags (the shanty: frugality and self-reliance; sawn boards: convenience). For free-form actions (`spend_time`, `adjust_money`), the game master supplies the tags. The weights reflect what Thoreau cares about. The running sum, the **drift**, sets his mood: kindred, hopeful, uneasy or estranged.
 - **House**: frame 25%, walls and roof 45%, chimney 15%, plaster 15%. Rough shanty boards make it *drafty*.
 
+## Under discussion (2026-11-05)
+
+**Economy:** stays at money, hours and the house. No food, fuel or clothing resources.
+
+**Happiness bar** (proposed; it would replace "spirit"): Thoreau's well-being, 0–100, which is separate from his *opinion* of you (drift).
+- Rises with what he'd call deliberate living: time in nature, solitude, simple good food, rest, real company in moderation, acting on conscience, free hours left in a season.
+- Falls with overwork, debt, the village gauntlet, and **superfluities**, meaning things beyond need.
+- **The rabbit hole:** a superfluity feels good for a moment (+) but adds 1 to `wants`. Every season end then drains happiness by `wants`, so each unneeded thing keeps costing. This is *Walden*'s "positive hindrances" idea, played as a mechanic.
+- Two new value tags: `wellbeing` and `superfluity`. Happiness is computed by the server from tool tags, like alignment, with its own weights.
+- Drift and happiness can disagree. A big Sunday dinner at the Emersons' makes him happier, but he grumbles about it.
+
+**The jail night** (proposed) is a three-beat branch in July 1846:
+1. **The Shoemaker's Errand.** In Concord, Sam Staples stops you over unpaid poll tax. You can pay, refuse, argue, or let Staples pay for you. `end_beat` takes an *outcome*, and "refused" queues the next two beats.
+2. **A Night in the Concord Jail.** A cellmate accused of burning a barn, the town heard through the window, and Thoreau's ideas on conscience coming alive. That evening someone (a veiled woman) pays your tax, and Staples won't let you out until morning.
+3. **Huckleberries.** Released and furious that someone paid, you finish the errand and lead a huckleberry party up the hill. The town looks different now.
+
+This needs **beat outcomes**: a beat declares its possible outcomes, `end_beat(outcome=...)` picks one, and the director queues that outcome's follow-up beats. The poll tax amount would be a game price.
+
 ## Next up
 
 - Content for Autumn 1845 → Summer 1847, about 12 more anchors: chimney and plaster before the frost, the first harvest, the woodchopper, winter fuel and the ice-cutters, the jail night (July 1846), John Field at Baker Farm, the second smaller field, and leaving on Sept 6, 1847.
