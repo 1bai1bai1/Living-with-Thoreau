@@ -91,15 +91,23 @@ class GeminiLLM:
             self._client = genai.Client(**kwargs)
         return self._client
 
-    async def _open(self, contents, config):
+    async def _chunks(self, contents, config):
+        """Stream the response. The request only goes out when the stream is
+        first read, so sign-in and rate-limit errors surface here, not when
+        it's opened."""
         from google.auth.exceptions import DefaultCredentialsError, RefreshError
         from google.genai.errors import ClientError
 
         for attempt in range(3):
+            started = False
             try:
-                return await self._get_client().aio.models.generate_content_stream(
+                response = await self._get_client().aio.models.generate_content_stream(
                     model=self.settings.GEMINI_MODEL, contents=contents, config=config
                 )
+                async for chunk in response:
+                    started = True
+                    yield chunk
+                return
             except (RefreshError, DefaultCredentialsError) as exc:
                 # The client holds the credentials it loaded at startup. Drop it,
                 # so the next call reads them fresh after the player signs in
@@ -107,14 +115,14 @@ class GeminiLLM:
                 self._client = None
                 raise ModelAuthError(ModelAuthError.MESSAGE) from exc
             except ClientError as exc:
-                if exc.code == 429 and attempt < 2:
+                if exc.code == 429 and attempt < 2 and not started:  # nothing shown yet, so it's safe to retry
                     await asyncio.sleep(0.6 * (attempt + 1))
                     continue
                 raise
 
     async def stream(self, prompt: Prompt) -> AsyncIterator[str]:
         config = types.GenerateContentConfig(system_instruction=prompt.system, temperature=prompt.temperature)
-        async for chunk in await self._open(prompt.user, config):
+        async for chunk in self._chunks(prompt.user, config):
             if chunk.text:
                 yield chunk.text
 
@@ -126,7 +134,7 @@ class GeminiLLM:
         )
         parts: list[types.Part] = []
         calls: list[types.FunctionCall] = []
-        async for chunk in await self._open(contents, config):
+        async for chunk in self._chunks(contents, config):
             candidate = chunk.candidates[0] if chunk.candidates else None
             if not candidate or not candidate.content or not candidate.content.parts:
                 continue

@@ -174,17 +174,22 @@ async def test_gemini_reloads_its_credentials_after_a_failed_refresh():
     from app.config import Settings
     from app.llm import GeminiLLM, ModelAuthError
 
+    async def expired():  # like genai: the request (and the refresh) happens on the first read
+        raise RefreshError("Reauthentication is needed.")
+        yield  # pragma: no cover
+
     class ExpiredClient:
         class aio:  # noqa: N801 - mirrors genai.Client.aio.models
             class models:  # noqa: N801
                 @staticmethod
                 async def generate_content_stream(**_):
-                    raise RefreshError("Reauthentication is needed.")
+                    return expired()
 
     gemini = GeminiLLM(Settings(GOOGLE_CLOUD_PROJECT="test"))
     gemini._client = ExpiredClient()
     with pytest.raises(ModelAuthError):
-        await gemini._open([], None)
+        async for _ in gemini.gm_round("system", [], []):
+            pass
     assert gemini._client is None  # the next call builds a client that reads the new sign-in
 
 
